@@ -1,12 +1,17 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, Image } from 'react-native'
-import React from 'react'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, Image, Alert } from 'react-native'
+import React, { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { fontFamily } from '@/theme/fontFamily'
 import { Images } from '@/constants/assets'
 import {useRouter} from 'expo-router'
+import { useAuth } from '@/auth/useAuth'
+import { FirebaseError } from 'firebase/app'
+import { handleFirebaseAuthError } from '@/utils/firebaseAuthError'
 
 const GetStartedScreen = () => {
-  const router = useRouter(); 
+  const router = useRouter();
+  const {  googleLogin } = useAuth();
+  const [loading, setLoading] = useState(false);
 
   const handleCreateAccountScreen = () => {
     router.push('/(root)/CreateAccountScreen');
@@ -14,6 +19,25 @@ const GetStartedScreen = () => {
 
   const handleLoginScreen = () => {
     router.push('/(root)/LoginScreen');
+  };
+
+  const handleLoginWithGoogle = async () => {
+    setLoading(true);
+    try {
+      await googleLogin();
+      router.push('/(app)/homeScreen');
+    } catch (error) {
+      console.error("❌ Error in handleCreateAccount:", error);
+      if (error instanceof FirebaseError) {
+          const authError = handleFirebaseAuthError(error);
+          Alert.alert(authError.title, authError.message);
+      } else {
+          // Handle non-Firebase errors (like API errors)
+          Alert.alert("Error", error instanceof Error ? error.message : "An unexpected error occurred");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -46,7 +70,7 @@ const GetStartedScreen = () => {
           />
         </View>
         <View style={styles.googleButtonContainer}>
-          <Pressable style={[styles.googleButton,]} className='bg-white border border-gray-400 dark:border-gray-200'>
+          <Pressable onPress={handleLoginWithGoogle} style={[styles.googleButton,]} className='bg-white border border-gray-400 dark:border-gray-200'>
             <Image style={{ width: 24, height: 24 }} source={Images.googleIcon} />
             <Text style={[styles.buttonText]}>Continue with Google</Text>
           </Pressable>

@@ -8,7 +8,9 @@ import {
     Platform,
     ScrollView,
     Keyboard,
-    TouchableWithoutFeedback
+    TouchableWithoutFeedback,
+    ActivityIndicator,
+    Alert
 } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,13 +18,17 @@ import { fontFamily } from '@/theme/fontFamily';
 import { Eye, EyeOff } from 'lucide-react-native'
 import { useColorScheme } from 'nativewind';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/auth/useAuth';
+import { handleFirebaseAuthError } from '@/utils/firebaseAuthError';
+import { FirebaseError } from 'firebase/app';
+import { loginUserWithEmailAndPassword } from '@/controllers/authController';
 
 const LoginScreen = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const router = useRouter();
     const { colorScheme } = useColorScheme();
-
+    const { loading, loginEmailPassword } = useAuth();
     const [showPassword, setShowPassword] = useState(false);
 
     const [errors, setErrors] = useState<{
@@ -49,14 +55,30 @@ const LoginScreen = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         if (!validateForm()) return;
 
         // 🔐 Firebase login call here
-        console.log({
-            email,
-            password,
-        });
+        console.log("Login account with email and password started")
+        try {
+            const response = await loginUserWithEmailAndPassword(email, password, loginEmailPassword)
+            console.log("✅ Account creation complete, navigating...");
+            if (response.user.on)
+                router.dismissAll();
+            router.dismissAll();
+            if (response.user.onboarding_completed) {
+                router.replace('/(app)/homeScreen')
+            } else {
+                router.replace('/(onboarding)/OnboardingScreen1')
+            }
+        } catch (error) {
+            if (error instanceof FirebaseError) {
+                const authError = handleFirebaseAuthError(error);
+                Alert.alert(authError.title, authError.message)
+            } else {
+                Alert.alert("Error", error instanceof Error ? error.message : "An unexpected error occurred");
+            }
+        }
     };
 
     const navigateToCreateAccountScreen = () => {
@@ -68,7 +90,7 @@ const LoginScreen = () => {
     }
 
     return (
-        <SafeAreaView 
+        <SafeAreaView
             className="flex-1 bg-background-light dark:bg-background-dark"
             edges={['top']}
         >
@@ -78,8 +100,8 @@ const LoginScreen = () => {
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
             >
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                    <ScrollView 
-                        contentContainerStyle={{ 
+                    <ScrollView
+                        contentContainerStyle={{
                             paddingHorizontal: 24,
                             paddingBottom: 40,
                             flexGrow: 1,
@@ -117,7 +139,7 @@ const LoginScreen = () => {
                                     className="p-4 rounded-full border border-gray-300 dark:border-gray-600 bg-surface-light dark:bg-surface-dark text-textPrimary-light dark:text-textPrimary-dark"
                                 />
                                 {errors.email && (
-                                    <Text 
+                                    <Text
                                         style={{ fontFamily: fontFamily.medium }}
                                         className="mt-1 ml-4 text-sm text-error"
                                     >
@@ -150,7 +172,7 @@ const LoginScreen = () => {
                                     </TouchableOpacity>
                                 </View>
                                 {errors.password && (
-                                    <Text 
+                                    <Text
                                         style={{ fontFamily: fontFamily.medium }}
                                         className="mt-1 ml-4 text-sm text-error"
                                     >
@@ -159,7 +181,7 @@ const LoginScreen = () => {
                                 )}
 
                                 {/* Forgot Password */}
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     className="mt-4 self-end"
                                     activeOpacity={0.7}
                                     onPress={navigateToForgotPasswordScreen}
@@ -178,13 +200,16 @@ const LoginScreen = () => {
                                 onPress={handleLogin}
                                 className="mt-8 h-14 rounded-full bg-primary items-center justify-center"
                                 activeOpacity={0.8}
+                                disabled={loading}
                             >
-                                <Text
-                                    style={{ fontFamily: fontFamily.semiBold }}
-                                    className="text-black text-lg"
-                                >
-                                    Log In
-                                </Text>
+                                {
+                                    loading ? <ActivityIndicator color="black" size="small" /> : <Text
+                                        style={{ fontFamily: fontFamily.semiBold }}
+                                        className="text-black text-lg"
+                                    >
+                                        Log In
+                                    </Text>
+                                }
                             </TouchableOpacity>
 
                         </View>

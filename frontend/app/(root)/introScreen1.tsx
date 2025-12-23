@@ -13,6 +13,10 @@ const IntroScreen1 = () => {
     router.push('/introScreen2');
   };
 
+  const handleLogin = () => {
+    router.push('/(root)/GetStartedScreen')
+  }
+
   return (
     <SafeAreaView className='flex-1 bg-background-light dark:bg-background-dark p-6'>
       <View className='flex-1 justify-center items-center'>
@@ -30,7 +34,7 @@ const IntroScreen1 = () => {
         <Pressable onPress={handleGetStartedScreen} className='bg-primary p-3 rounded-full w-full mt-12'>
           <Text style={{ fontFamily: fontFamily.bold }} className='text-surface-dark text-center text-lg'>Get Started</Text>
         </Pressable>
-        <Pressable className=' p-3 rounded-full w-full mt-8'>
+        <Pressable   onPress={handleLogin} className=' p-3 rounded-full w-full mt-8'>
           <Text style={{ fontFamily: fontFamily.bold }} className='text-textPrimary-light dark:text-textPrimary-dark text-center text-lg'>Log In</Text>
         </Pressable>
       </View>
