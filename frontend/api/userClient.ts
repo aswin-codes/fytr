@@ -23,4 +23,14 @@ export const loginUser = async (payload: {
   }
 };
 
-
+export const loginUserWithGoogle = async (payload:{
+  full_name: string;
+}) => {
+  try {
+    const res = await apiClient.post('/user/login-google', payload);
+    return res.data;
+    
+  } catch (error) {
+    throw error;
+  }
+};

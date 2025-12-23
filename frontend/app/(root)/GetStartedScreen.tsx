@@ -7,6 +7,7 @@ import {useRouter} from 'expo-router'
 import { useAuth } from '@/auth/useAuth'
 import { FirebaseError } from 'firebase/app'
 import { handleFirebaseAuthError } from '@/utils/firebaseAuthError'
+import { loginWithGoogle } from '@/controllers/authController'
 
 const GetStartedScreen = () => {
   const router = useRouter();
@@ -24,8 +25,12 @@ const GetStartedScreen = () => {
   const handleLoginWithGoogle = async () => {
     setLoading(true);
     try {
-      await googleLogin();
-      router.push('/(app)/homeScreen');
+      const response = await loginWithGoogle( googleLogin);
+      if (response.user.onboarding_completed) {
+        router.push('/(app)/homeScreen');
+      } else {
+        router.push('/(onboarding)/OnboardingScreen1');
+      }
     } catch (error) {
       console.error("❌ Error in handleCreateAccount:", error);
       if (error instanceof FirebaseError) {
@@ -70,9 +75,17 @@ const GetStartedScreen = () => {
           />
         </View>
         <View style={styles.googleButtonContainer}>
-          <Pressable onPress={handleLoginWithGoogle} style={[styles.googleButton,]} className='bg-white border border-gray-400 dark:border-gray-200'>
-            <Image style={{ width: 24, height: 24 }} source={Images.googleIcon} />
-            <Text style={[styles.buttonText]}>Continue with Google</Text>
+          <Pressable disabled={loading} onPress={handleLoginWithGoogle} style={[styles.googleButton,]} className='bg-white border border-gray-400 dark:border-gray-200'>
+            {
+              loading ? (
+                <ActivityIndicator size="small" color={"black"} />
+              ) : (
+                <>
+                  <Image style={{ width: 24, height: 24 }} source={Images.googleIcon} />
+                  <Text style={[styles.buttonText]}>Continue with Google</Text>
+                </>
+              )
+            }
           </Pressable>
         </View>
       </View>
