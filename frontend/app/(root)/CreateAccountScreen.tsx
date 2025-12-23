@@ -28,8 +28,9 @@ const CreateAccountScreen = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [loading, setLoading] = useState(false);
     const router = useRouter();
-    const { loading, createAccountEmailPassword } = useAuth();
+    const {  createAccountEmailPassword } = useAuth();
 
     const { colorScheme } = useColorScheme();
 
@@ -73,6 +74,7 @@ const CreateAccountScreen = () => {
     const handleCreateAccount = async () => {
         if (!validateForm()) return;
         console.log("🚀 Creating account started")
+        setLoading(true);
         try {
             const response = await registerEmailAndPassword(email, password, fullName, createAccountEmailPassword);
             console.log("✅ Account creation complete, navigating...");
@@ -91,6 +93,8 @@ const CreateAccountScreen = () => {
                 // Handle non-Firebase errors (like API errors)
                 Alert.alert("Error", error instanceof Error ? error.message : "An unexpected error occurred");
             }
+        } finally {
+            setLoading(false);
         }
     };
 

@@ -17,11 +17,13 @@ import { fontFamily } from '@/theme/fontFamily';
 import { ArrowLeft, Mail } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/auth/useAuth';
 
 const ForgotPasswordScreen = () => {
     const [email, setEmail] = useState('');
     const [emailSent, setEmailSent] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+  const { forgotPassword } = useAuth();
     
     const { colorScheme } = useColorScheme();
     const router = useRouter();
@@ -51,8 +53,8 @@ const ForgotPasswordScreen = () => {
         // 🔐 Firebase password reset call here
         try {
             // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            
+            await forgotPassword(email);
+
             console.log('Password reset email sent to:', email);
             setEmailSent(true);
             setErrors({});

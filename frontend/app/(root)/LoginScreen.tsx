@@ -28,8 +28,9 @@ const LoginScreen = () => {
     const [password, setPassword] = useState('');
     const router = useRouter();
     const { colorScheme } = useColorScheme();
-    const { loading, loginEmailPassword } = useAuth();
+    const {  loginEmailPassword } = useAuth();
     const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
     const [errors, setErrors] = useState<{
         email?: string;
@@ -60,6 +61,7 @@ const LoginScreen = () => {
 
         // 🔐 Firebase login call here
         console.log("Login account with email and password started")
+        setLoading(true);
         try {
             const response = await loginUserWithEmailAndPassword(email, password, loginEmailPassword)
             console.log("✅ Account creation complete, navigating...");
@@ -78,6 +80,8 @@ const LoginScreen = () => {
             } else {
                 Alert.alert("Error", error instanceof Error ? error.message : "An unexpected error occurred");
             }
+        } finally {
+            setLoading(false);
         }
     };
 
