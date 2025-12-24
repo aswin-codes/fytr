@@ -14,14 +14,14 @@ import {
 } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fontFamily } from '@/theme/fontFamily';
+import { fontFamily } from '@/src/theme/fontFamily';
 import { Eye, EyeOff } from 'lucide-react-native'
 import { useColorScheme } from 'nativewind';
 import { useRouter } from 'expo-router';
-import { useAuth } from '@/auth/useAuth';
-import { handleFirebaseAuthError } from '@/utils/firebaseAuthError';
+import { useAuth } from '@/src/auth/useAuth';
+import { handleFirebaseAuthError } from '@/src/utils/firebaseAuthError';
 import { FirebaseError } from 'firebase/app';
-import { loginUserWithEmailAndPassword } from '@/controllers/authController';
+import { loginUserWithEmailAndPassword } from '@/src/controllers/authController';
 
 const LoginScreen = () => {
     const [email, setEmail] = useState('');

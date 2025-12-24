@@ -1,7 +1,7 @@
 import { TouchableOpacity, StyleSheet, Text, View } from 'react-native'
 import React from 'react'
-import { useAuth } from '@/auth/useAuth'
-import { userStorage } from '@/store/userStorage';
+import { useAuth } from '@/src/auth/useAuth'
+import { userStorage } from '@/src/store/userStorage';
 
 const HomeScreen = () => {
   const {logout} = useAuth();

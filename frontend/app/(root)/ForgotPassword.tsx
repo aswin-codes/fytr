@@ -13,11 +13,11 @@ import {
 } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fontFamily } from '@/theme/fontFamily';
+import { fontFamily } from '@/src/theme/fontFamily';
 import { ArrowLeft, Mail } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import { useRouter } from 'expo-router';
-import { useAuth } from '@/auth/useAuth';
+import { useAuth } from '@/src/auth/useAuth';
 
 const ForgotPasswordScreen = () => {
     const [email, setEmail] = useState('');

@@ -1,11 +1,11 @@
 import "../global.css";
-import { AuthProvider } from "@/auth/authProvider";
+import { AuthProvider } from "@/src/auth/authProvider";
 import { SplashScreen, Stack } from "expo-router";
-import { ThemeProvider } from "@/theme/ThemeContext";
-import { fontFamily } from "@/theme/fontFamily";
+import { ThemeProvider } from "@/src/theme/ThemeContext";
+import { fontFamily } from "@/src/theme/fontFamily";
 import { useEffect } from "react";
 import { useFonts } from "expo-font";
-
+import ToastManager from 'toastify-react-native';
 
 export default function Layout() {
   const [loaded] = useFonts({
@@ -28,6 +28,7 @@ export default function Layout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
       </Stack>
+      <ToastManager />
       </ThemeProvider>
     </AuthProvider>
   );

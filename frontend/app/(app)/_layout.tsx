@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
-import ProtectedRoute from "@/auth/protectedRoutes";
+import ProtectedRoute from "@/src/auth/protectedRoutes";
 
 export default function AppLayout() {
     return (

@@ -1,4 +1,4 @@
-import { UserType } from '@/types/userType';
+import { UserType } from '@/src/types/userType';
 import { storage } from './asyncStorage';
 import { STORAGE_KEYS } from './keys';
 

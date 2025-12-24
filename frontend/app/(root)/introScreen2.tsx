@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View, Image, Pressable, ScrollView, Dimensions } from 'react-native'
 import React, { useRef, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Images } from '@/constants/assets'
-import { fontFamily } from '@/theme/fontFamily'
+import { Images } from '@/src/constants/assets'
+import { fontFamily } from '@/src/theme/fontFamily'
 import PaginationDot from '@/components/PaginationDot'
 import { useRouter } from 'expo-router'
 

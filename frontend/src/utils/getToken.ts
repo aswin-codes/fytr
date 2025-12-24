@@ -1,4 +1,4 @@
-import { auth } from "@/utils/firebase";
+import { auth } from "@/src/utils/firebase";
 
 export const getToken = async () => {
     console.log("🔑 getToken called");

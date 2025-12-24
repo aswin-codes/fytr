@@ -2,7 +2,7 @@ import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged,
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { createContext, useEffect, useState } from "react";
 import React from "react"
-import { auth } from "@/utils/firebase";
+import { auth } from "@/src/utils/firebase";
 
 interface authContextProps {
     user : User | null;

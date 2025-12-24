@@ -1,9 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import React from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { fontFamily } from '@/theme/fontFamily'
+import { fontFamily } from '@/src/theme/fontFamily'
 import LottieView from 'lottie-react-native'
-import { LottieFiles } from '@/constants/assets'
+import { LottieFiles } from '@/src/constants/assets'
 import { useRouter } from 'expo-router'
 
 const IntroScreen1 = () => {

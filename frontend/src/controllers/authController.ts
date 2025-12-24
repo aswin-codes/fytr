@@ -1,5 +1,5 @@
-import { registerUser, loginUser , loginUserWithGoogle} from "@/api/userClient";
-import { userStorage } from "@/store/userStorage";
+import { registerUser, loginUser , loginUserWithGoogle} from "@/src/api/userClient";
+import { userStorage } from "@/src/store/userStorage";
 
 export const registerEmailAndPassword = async (
     email: string,

@@ -1,13 +1,13 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, Image, Alert } from 'react-native'
 import React, { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { fontFamily } from '@/theme/fontFamily'
-import { Images } from '@/constants/assets'
+import { fontFamily } from '@/src/theme/fontFamily'
+import { Images } from '@/src/constants/assets'
 import {useRouter} from 'expo-router'
-import { useAuth } from '@/auth/useAuth'
+import { useAuth } from '@/src/auth/useAuth'
 import { FirebaseError } from 'firebase/app'
-import { handleFirebaseAuthError } from '@/utils/firebaseAuthError'
-import { loginWithGoogle } from '@/controllers/authController'
+import { handleFirebaseAuthError } from '@/src/utils/firebaseAuthError'
+import { loginWithGoogle } from '@/src/controllers/authController'
 
 const GetStartedScreen = () => {
   const router = useRouter();

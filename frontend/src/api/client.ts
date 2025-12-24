@@ -1,4 +1,4 @@
-import { getToken } from "@/utils/getToken";
+import { getToken } from "@/src/utils/getToken";
 import axios from "axios";
 
 export const apiClient = axios.create({
