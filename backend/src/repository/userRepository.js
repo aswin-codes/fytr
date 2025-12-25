@@ -26,7 +26,20 @@ async function getUserById(firebase_uid) {
     }
 }
 
+async function getUserIdByFirebaseId(firebase_uid) {
+    const query = `SELECT id FROM users WHERE firebase_uid = $1`;
+    const values = [firebase_uid];
+    try {
+        const result = await pool.query(query, values);
+        return result.rows[0] || null;
+    } catch (error) {
+        logger.error("Error getting user ID:", error);
+        throw error;
+    }
+}
+
 module.exports = {
     createUser,
-    getUserById
+    getUserById,
+    getUserIdByFirebaseId
 }

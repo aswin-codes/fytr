@@ -160,7 +160,7 @@ const DailyTargetsCard = () => {
   const dailyCalories = macroTargets?.calories || 2450;
   const protein = macroTargets?.protein || 180;
   const carbs = macroTargets?.carbs || 220;
-  const fats = macroTargets?.fats || 85;
+  const fats = macroTargets?.fat || 85;
   const fiber = macroTargets?.fiber || 35;
 
   return (

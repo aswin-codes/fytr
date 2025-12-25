@@ -14,13 +14,11 @@ CREATE TABLE users (
 CREATE TABLE user_body_metrics (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
 
-    gender TEXT CHECK (gender IN ('male', 'female', 'other')) NOT NULL,
+    gender TEXT CHECK (gender IN ('male', 'female')) NOT NULL,
+    age INT NOT NULL,
     height_cm NUMERIC(5,2) NOT NULL,
     weight_kg NUMERIC(5,2) NOT NULL,
     target_weight_kg NUMERIC(5,2) NOT NULL,
-
-    bmi NUMERIC(4,2),
-    target_bmi NUMERIC(4,2),
 
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -34,11 +32,11 @@ CREATE TABLE user_activity_level (
             'light',
             'moderate',
             'active',
+            'very-active',
             'athlete'
         )
     ) NOT NULL,
 
-    workouts_per_week INT,
 
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -59,8 +57,23 @@ CREATE TABLE user_goals (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
 
     goal_type TEXT CHECK (
-        goal_type IN ('fat_loss', 'muscle_gain', 'maintenance')
+        goal_type IN ('lose-weight', 'gain-muscle', 'maintain')
     ) NOT NULL,
 
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE TABLE exercises (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    force TEXT,
+    level TEXT,
+    mechanic TEXT,
+    equipment TEXT,
+    category TEXT,
+    primary_muscles TEXT[],
+    secondary_muscles TEXT[],
+    instructions TEXT[],
+    image_urls TEXT[]
+);
+
