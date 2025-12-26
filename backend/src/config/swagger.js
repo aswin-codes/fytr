@@ -14,6 +14,10 @@ const options = {
                 url: 'http://localhost:3000',
                 description: 'Development server',
             },
+            {
+              url: 'https://backendfytr.vercel.app',
+              description: 'Production server'
+            }
         ],
         components: {
             securitySchemes: {
