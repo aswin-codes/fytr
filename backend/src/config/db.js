@@ -9,9 +9,6 @@ const pool = new Pool({
     user: PG_USER,
     password: PG_PASSWORD,
     database: PG_DATABASE,
-    max: 20,              // Max connections
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
     ssl:{ rejectUnauthorized: false },
 });
 
