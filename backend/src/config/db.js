@@ -12,7 +12,7 @@ const pool = new Pool({
     max: 20,              // Max connections
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
-    ssl: true,
+    ssl:{ rejectUnauthorized: false },
 });
 
 // Test DB connection once at startup
