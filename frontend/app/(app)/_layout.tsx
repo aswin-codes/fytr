@@ -62,7 +62,7 @@ export default function TabsLayout() {
 
       {/* EXPLORE */}
       <Tabs.Screen
-        name="explore/index"
+        name="explore"
         options={{
           tabBarIcon: ({ focused }) => (
             <Search color={focused ? activeColor : inactiveColor} />

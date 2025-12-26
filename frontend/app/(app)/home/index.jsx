@@ -1,4 +1,4 @@
-import { TouchableOpacity, StyleSheet, Text, View,  } from 'react-native'
+import { TouchableOpacity,  Text, View,  } from 'react-native'
 import React, { useEffect, } from 'react'
 import { useAuth } from '@/src/auth/useAuth'
 import { userStorage } from '@/src/store/userStorage';
@@ -47,5 +47,3 @@ const HomeScreen = () => {
 }
 
 export default HomeScreen
-
-const styles = StyleSheet.create({})
