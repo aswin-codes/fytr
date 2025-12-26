@@ -80,7 +80,7 @@ const CreateAccountScreen = () => {
             console.log("✅ Account creation complete, navigating...");
             router.dismissAll();
             if (response.user.onboarding_completed) {
-                router.replace('/(app)/homeScreen')
+                router.replace('/(app)/home')
             } else {
                 router.replace('/(onboarding)/OnboardingScreen1')
             }
@@ -128,7 +128,7 @@ const CreateAccountScreen = () => {
                                 style={{ fontFamily: fontFamily.semiBold }}
                                 className="text-3xl text-textPrimary-light dark:text-textPrimary-dark mt-10"
                             >
-                                Create your FYTR account
+                                Create your Gymmie account
                             </Text>
 
                             <Text

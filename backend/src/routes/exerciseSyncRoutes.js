@@ -62,14 +62,6 @@ router.get("/version", checkExerciseVersion);
  *       returns all exercises for the client to sync.
  *     tags:
  *       - Exercise Sync
- *     parameters:
- *       - in: query
- *         name: version
- *         required: false
- *         schema:
- *           type: string
- *         description: The client's current exercise catalog version
- *         example: "1.0.0"
  *     responses:
  *       200:
  *         description: Exercise sync response

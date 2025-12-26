@@ -68,7 +68,7 @@ const LoginScreen = () => {
             
             router.dismissAll();
             if (response.user.onboarding_completed) {
-                router.replace('/(app)/homeScreen')
+                router.replace('/(app)/home')
             } else {
                 router.replace('/(onboarding)/OnboardingScreen1')
             }

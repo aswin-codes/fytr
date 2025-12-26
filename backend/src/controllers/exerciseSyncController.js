@@ -21,17 +21,9 @@ const checkExerciseVersion = async (req, res) => {
 
 const syncExercisesIfNeeded = async (req, res) => {
   try {
-    const clientVersion = req.query.version;
     const serverVersion = await getExerciseCatalogVersion();
 
-    if (clientVersion === serverVersion) {
-      return res.json({
-        success: true,
-        upToDate: true,
-        version: serverVersion,
-        data: [],
-      });
-    }
+    
 
     const exercises = await getAllExercises();
 

@@ -28,7 +28,7 @@ const GetStartedScreen = () => {
       const response = await loginWithGoogle( googleLogin);
       router.dismissAll();
       if (response.user.onboarding_completed) {
-        router.push('/(app)/homeScreen');
+        router.push('/(app)/home');
       } else {
         router.push('/(onboarding)/OnboardingScreen1');
       }
@@ -49,7 +49,7 @@ const GetStartedScreen = () => {
 
   return (
     <SafeAreaView className='flex-1 bg-background-light dark:bg-background-dark justify-center items-center p-6'>
-      <Text style={{ fontFamily: fontFamily.semiBold }} className='text-4xl text-textPrimary-light dark:text-textPrimary-dark'>Join Fytr</Text>
+      <Text style={{ fontFamily: fontFamily.semiBold }} className='text-4xl text-textPrimary-light dark:text-textPrimary-dark'>Join Gymmie</Text>
       <Text style={{ fontFamily: fontFamily.medium }} className='text-textSecondary-light dark:text-textSecondary-dark mt-3 px-12  text-center'>Create an account or log in to continue</Text>
       <View className="mt-5 w-full">
         <Pressable onPress={handleCreateAccountScreen} className='bg-primary p-3 rounded-full w-full mt-12'>
