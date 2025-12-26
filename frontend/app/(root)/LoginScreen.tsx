@@ -65,8 +65,7 @@ const LoginScreen = () => {
         try {
             const response = await loginUserWithEmailAndPassword(email, password, loginEmailPassword)
             console.log("✅ Account creation complete, navigating...");
-            if (response.user.on)
-                router.dismissAll();
+            
             router.dismissAll();
             if (response.user.onboarding_completed) {
                 router.replace('/(app)/homeScreen')

@@ -26,6 +26,7 @@ const GetStartedScreen = () => {
     setLoading(true);
     try {
       const response = await loginWithGoogle( googleLogin);
+      router.dismissAll();
       if (response.user.onboarding_completed) {
         router.push('/(app)/homeScreen');
       } else {

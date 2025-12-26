@@ -16,15 +16,26 @@ import ActivityLevelCard from '@/components/Onboarding/ActivityLevelCard';
 import FitnessGoalCard from '@/components/Onboarding/FitnessGoalCard';
 import AnalyzingDataCard from '@/components/Onboarding/AnalyzingDataCard';
 import DailyTargetsCard from '@/components/Onboarding/DailyTargetCard';
+import { updateUserOnboarding } from '@/src/controllers/onboardingController';
 
 const OnboardingScreen1 = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { colorScheme } = useColorScheme();
   const { width } = Dimensions.get('window');
-  const { gender, weight, height, targetWeight, activityLevel, goalType, isCompleted } =
-    useOnboardingStore();
+  const { 
+    gender, 
+    age, 
+    weight, 
+    height, 
+    targetWeight, 
+    activityLevel, 
+    goalType, 
+    isCompleted,
+    macroTargets 
+  } = useOnboardingStore();
 
   const moveNext = () => {
     const nextStep = step + 1;
@@ -40,7 +51,61 @@ const OnboardingScreen1 = () => {
       scrollViewRef.current?.scrollTo({ x: width * prevStep, animated: true });
       setStep(prevStep);
     } else {
-      router.back();
+      
+    }
+  };
+
+  const submitOnboarding = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      // Validate all required data
+      if (!gender || !age || !height || !weight || !targetWeight || !activityLevel || !goalType) {
+        Toast.error('Please complete all onboarding steps!');
+        return;
+      }
+
+      if (!macroTargets) {
+        Toast.error('Nutrition targets not calculated!');
+        return;
+      }
+
+      // Prepare payload
+      const payload = {
+        body_metrics: {
+          gender: gender,
+          age: parseInt(age),
+          height_cm: parseFloat(height),
+          weight_kg: parseFloat(weight),
+          target_weight_kg: parseFloat(targetWeight),
+        },
+        activity_level: activityLevel,
+        goal_type: goalType,
+        nutrition_targets: {
+          calories: macroTargets.calories,
+          protein_g: macroTargets.protein,
+          carbs_g: macroTargets.carbs,
+          fat_g: macroTargets.fat,
+          fiber_g: macroTargets.fiber,
+        },
+      };
+
+      // Call the API
+      await updateUserOnboarding(payload);
+
+      // Success feedback
+      Toast.success('Onboarding completed successfully!');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Navigate to home screen
+      router.replace('/(app)/homeScreen');
+      
+    } catch (error) {
+      console.error('Error submitting onboarding:', error);
+      Toast.error('Failed to complete onboarding. Please try again.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -91,6 +156,25 @@ const OnboardingScreen1 = () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         return;
       }
+      
+      if (goalType === 'lose-weight' && parseFloat(targetWeight!) >= parseFloat(weight!)) {
+        Toast.warn('Target weight must be less than current weight for weight loss!');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        return;
+      }
+      
+      if (goalType === 'gain-muscle' && parseFloat(targetWeight!) <= parseFloat(weight!)) {
+        Toast.warn('Target weight must be greater than current weight for muscle gain!');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        return;
+      }
+      
+      if (goalType === 'maintain' && Math.abs(parseFloat(targetWeight!) - parseFloat(weight!)) > 3) {
+        Toast.warn('Target weight must be almost equal to current weight!');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        return;
+      }
+      
       moveNext();
       return;
     }
@@ -105,6 +189,12 @@ const OnboardingScreen1 = () => {
       return;
     }
 
+    if (step === 6) {
+      // Final step - submit onboarding
+      submitOnboarding();
+      return;
+    }
+
     if (nextStep <= 6) {
       // Continue to next steps
     }
@@ -113,7 +203,7 @@ const OnboardingScreen1 = () => {
   return (
     <SafeAreaView className="flex flex-1 items-center bg-background-light dark:bg-background-dark">
       <View className="flex w-full flex-row p-6">
-        <Pressable onPress={moveBack}>
+        <Pressable onPress={moveBack} disabled={isSubmitting}>
           <ArrowLeft size={24} color={colorScheme === 'light' ? '#000' : '#fff'} />
         </Pressable>
         <View className="flex-1"></View>
@@ -147,11 +237,14 @@ const OnboardingScreen1 = () => {
       </View>
 
       <View className="w-full p-6">
-        <Pressable onPress={handleScroll} className="w-full rounded-full bg-primary p-3">
-          <Text
+        <Pressable 
+          onPress={handleScroll} 
+          className="w-full rounded-full bg-primary p-3"
+          disabled={isSubmitting}>
+          <Text            
             style={{ fontFamily: fontFamily.bold }}
             className="text-center text-lg text-surface-dark">
-            {step === 0 ? 'Get Started' : 'Continue'}
+            {isSubmitting ? 'Completing...' : step === 0 ? 'Get Started' : step === 6 ? 'Complete' : 'Continue'}
           </Text>
         </Pressable>
       </View>
