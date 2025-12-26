@@ -77,3 +77,10 @@ CREATE TABLE exercises (
     image_urls TEXT[]
 );
 
+CREATE TABLE app_metadata (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+

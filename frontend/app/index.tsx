@@ -30,7 +30,7 @@ export default function Home() {
       }
 
       if (storedUser?.onboarding_completed) {
-        router.replace('/(app)/homeScreen');
+        router.replace('/(app)/home');
       } else {
         router.replace('/(onboarding)/OnboardingScreen1');
       }

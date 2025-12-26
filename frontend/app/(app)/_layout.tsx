@@ -1,12 +1,84 @@
-import { Stack } from "expo-router";
-import ProtectedRoute from "@/src/auth/protectedRoutes";
+import { Tabs } from 'expo-router';
+import { View } from 'react-native';
+import { useColorScheme } from 'nativewind';
+import {
+  Home,
+  ClipboardList,
+  User,
+  Search,
+  QrCode,
+} from 'lucide-react-native';
 
-export default function AppLayout() {
-    return (
-        <ProtectedRoute>
-            <Stack screenOptions={{animation : "slide_from_right", headerShown : false}}>
-                <Stack.Screen name="homeScreen" options={{headerShown : false}} />
-            </Stack>
-        </ProtectedRoute>
-    );
+export default function TabsLayout() {
+  const { colorScheme } = useColorScheme();
+
+  const activeColor = colorScheme === 'dark' ? '#F6F000' : '#E6E000';
+  const inactiveColor = '#9CA3AF';
+
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarStyle: {
+          height: 70,
+          backgroundColor: colorScheme === 'dark' ? '#121212' : '#FFFFFF',
+          borderTopWidth: 0,
+          elevation: 0,
+        },
+      }}
+    >
+      {/* HOME */}
+      <Tabs.Screen
+        name="home/index"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <Home color={focused ? activeColor : inactiveColor} />
+          ),
+        }}
+      />
+
+      {/* LOG */}
+      <Tabs.Screen
+        name="log/index"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <ClipboardList color={focused ? activeColor : inactiveColor} />
+          ),
+        }}
+      />
+
+      {/* AI FORM (CENTER) */}
+      <Tabs.Screen
+        name="ai/index"
+        options={{
+          tabBarIcon: () => (
+            <View className="h-16 w-16 -mt-5 items-center justify-center rounded-full bg-primary shadow-lg">
+              <QrCode color="#0F0F0F" />
+            </View>
+          ),
+        }}
+      />
+
+      {/* EXPLORE */}
+      <Tabs.Screen
+        name="explore/index"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <Search color={focused ? activeColor : inactiveColor} />
+          ),
+        }}
+      />
+
+      {/* PROFILE */}
+      <Tabs.Screen
+        name="profile/index"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <User color={focused ? activeColor : inactiveColor} />
+          ),
+        }}
+      />
+    </Tabs>
+  );
 }
