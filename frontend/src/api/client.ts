@@ -2,8 +2,9 @@ import { getToken } from "@/src/utils/getToken";
 import axios from "axios";
 
 export const apiClient = axios.create({
-    baseURL: "http://192.168.1.3:3000/api",
-    timeout: 10000,
+    //baseURL: "http://192.168.1.3:3000/api",
+    baseURL: 'https://backendfytr.vercel.app/api',
+    timeout: 20000,
 });
 
 apiClient.interceptors.request.use(async (config) => {

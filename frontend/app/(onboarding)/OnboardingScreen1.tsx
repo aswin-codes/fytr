@@ -98,7 +98,7 @@ const OnboardingScreen1 = () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       // Navigate to home screen
-      router.replace('/(app)/homeScreen');
+      router.replace('/(app)/home');
       
     } catch (error) {
       console.error('Error submitting onboarding:', error);
@@ -169,7 +169,7 @@ const OnboardingScreen1 = () => {
         return;
       }
       
-      if (goalType === 'maintain' && Math.abs(parseFloat(targetWeight!) - parseFloat(weight!)) > 3) {
+      if (goalType === 'maintain' && Math.abs(parseFloat(targetWeight!) - parseFloat(weight!)) > 5) {
         Toast.warn('Target weight must be almost equal to current weight!');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         return;
@@ -181,7 +181,7 @@ const OnboardingScreen1 = () => {
 
     if (step === 5) {
       if (isCompleted === false) {
-        Toast.warn('Please complete the analysis!');
+        Toast.warn('Please wait till we process your information!');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         return;
       }
@@ -204,7 +204,7 @@ const OnboardingScreen1 = () => {
     <SafeAreaView className="flex flex-1 items-center bg-background-light dark:bg-background-dark">
       <View className="flex w-full flex-row p-6">
         <Pressable onPress={moveBack} disabled={isSubmitting}>
-          <ArrowLeft size={24} color={colorScheme === 'light' ? '#000' : '#fff'} />
+          { (step !== 0) && <ArrowLeft size={24} color={colorScheme === 'light' ? '#000' : '#fff'} />}
         </Pressable>
         <View className="flex-1"></View>
         <View className="-ml-5 w-fit rounded-full border border-gray-300 bg-surface-light px-2 py-1 dark:border-gray-700 dark:bg-surface-dark">

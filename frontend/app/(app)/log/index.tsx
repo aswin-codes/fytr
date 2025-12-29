@@ -1,11 +1,10 @@
 import {  Text, View } from 'react-native'
 import React from 'react'
+import UnderDevelopmentScreen from '@/components/UnderDevelopmentScreen'
 
 const LogScreen = () => {
   return (
-    <View>
-      <Text>LogScreen</Text>
-    </View>
+    <UnderDevelopmentScreen/>
   )
 }
 

@@ -16,17 +16,17 @@ module.exports = {
 
         /* ========== BACKGROUNDS ========== */
         background: {
-          light: "#F8F9FB",
+          light: "#F8F8F5",
           dark: "#0B0B0B",
         },
 
         surface: {
           light: "#FFFFFF",
-          dark: "#121212",
+          dark: "#1d1c1c",
         },
 
         card: {
-          light: "#F1F3F6",
+          light: "#FEFEFE",
           dark: "#181818",
         },
 

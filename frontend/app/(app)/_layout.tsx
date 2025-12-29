@@ -5,9 +5,10 @@ import {
   Home,
   ClipboardList,
   User,
-  Search,
   QrCode,
+  Dumbbell,
 } from 'lucide-react-native';
+import ProtectedRoute from '@/src/auth/protectedRoutes';
 
 export default function TabsLayout() {
   const { colorScheme } = useColorScheme();
@@ -16,13 +17,14 @@ export default function TabsLayout() {
   const inactiveColor = '#9CA3AF';
 
   return (
+    <ProtectedRoute>
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
           height: 70,
-          backgroundColor: colorScheme === 'dark' ? '#121212' : '#FFFFFF',
+          backgroundColor: colorScheme === 'dark' ? '#1d1c1c' : '#FFFFFF',
           borderTopWidth: 0,
           elevation: 0,
         },
@@ -65,7 +67,7 @@ export default function TabsLayout() {
         name="explore"
         options={{
           tabBarIcon: ({ focused }) => (
-            <Search color={focused ? activeColor : inactiveColor} />
+            <Dumbbell color={focused ? activeColor : inactiveColor} />
           ),
         }}
       />
@@ -80,5 +82,6 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    </ProtectedRoute>
   );
 }

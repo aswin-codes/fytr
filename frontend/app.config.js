@@ -1,10 +1,13 @@
-{
-  "expo": {
+export default {
+  expo: {
     "name": "Gymmie",
     "slug": "gymmie",
     "version": "1.0.0",
     "scheme": "gymmie",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -28,13 +31,13 @@
           "enableFTS": true,
           "useSQLCipher": true,
           "android": {
-            // Override the shared configuration for Android
             "enableFTS": false,
             "useSQLCipher": false
           },
           "ios": {
-            // You can also override the shared configurations for iOS
-            "customBuildFlags": ["-DSQLITE_ENABLE_DBSTAT_VTAB=1 -DSQLITE_ENABLE_SNAPSHOT=1"]
+            "customBuildFlags": [
+              "-DSQLITE_ENABLE_DBSTAT_VTAB=1 -DSQLITE_ENABLE_SNAPSHOT=1"
+            ]
           }
         }
       ]
@@ -51,7 +54,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
@@ -61,7 +66,13 @@
         "backgroundColor": "#F6F000"
       },
       "package": "com.anonymous.fytr",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": process.env.GOOGLE_SERVICES_JSON 
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8bfc8221-1fde-4313-84a9-98cf3f577c90"
+      }
     }
   }
 }

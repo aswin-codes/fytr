@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,60 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
-  Pressable,
+  ScrollView,
   Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { getAllExercises, filterExercises, getFilterOptions } from '@/src/db/exerciseRepo';
 import { forceSyncExercises } from '@/src/controllers/exerciseSyncController';
 import { Exercise } from '@/src/types/exerciseTypes';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { fontFamily } from '@/src/theme/fontFamily';
+import { Search, SlidersHorizontal, X } from 'lucide-react-native';
+
+// Muscle groups for filtering
+const MUSCLE_GROUPS = [
+  'All',
+  'Chest',
+  'Biceps',
+  'Triceps',
+  'Shoulders',
+  'Core',
+  'Back',
+  'Legs',
+];
+
+// Map muscle groups to actual muscle values in DB
+const MUSCLE_MAP: Record<string, string[] | null> = {
+  chest: ['chest'],
+  biceps: ['biceps'],
+  triceps: ['triceps'],
+  shoulders: ['shoulders'],
+  core: ['abdominals', 'lower back'],
+  back: ['lats', 'middle back', 'lower back'],
+  legs: ['quadriceps', 'hamstrings', 'calves', 'glutes', 'adductors', 'abductors']
+
+};
+
+// Difficulty level dots component
+const DifficultyDots = ({ level }: { level: string | null }) => {
+  const levels = ['beginner', 'intermediate', 'expert'];
+  const currentLevel = level?.toLowerCase() || 'beginner';
+  const activeDots = levels.indexOf(currentLevel) + 1;
+
+  return (
+    <View className="flex-row items-center gap-1">
+      {[1, 2, 3].map((dot) => (
+        <View
+          key={dot}
+          className={`h-1.5 w-1.5 rounded-full ${
+            dot <= activeDots ? 'bg-primary' : 'bg-gray-300'
+          }`}
+        />
+      ))}
+    </View>
+  );
+};
 
 export default function ExploreScreen() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -25,27 +72,25 @@ export default function ExploreScreen() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Filter state
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedMuscle, setSelectedMuscle] = useState<string>('All');
   const [selectedEquipment, setSelectedEquipment] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
 
-  // Filter options
+  // Filter options from DB
   const [filterOptions, setFilterOptions] = useState({
     categories: [] as string[],
     equipment: [] as string[],
     levels: [] as string[],
   });
 
-  // Load exercises on mount
   useEffect(() => {
     loadExercises();
     loadFilterOptions();
   }, []);
 
-  // Apply search and filters
   useEffect(() => {
     applyFiltersAndSearch();
-  }, [searchQuery, selectedCategory, selectedEquipment, selectedLevel, exercises]);
+  }, [searchQuery, selectedMuscle, selectedEquipment, selectedLevel, exercises]);
 
   const loadExercises = async () => {
     try {
@@ -73,18 +118,36 @@ export default function ExploreScreen() {
     try {
       let result = exercises;
 
-      // Apply filters first
-      if (selectedCategory || selectedEquipment || selectedLevel) {
-        result = await filterExercises({
-          category: selectedCategory || undefined,
-          equipment: selectedEquipment || undefined,
-          level: selectedLevel || undefined,
+      // Apply muscle filter
+      if (selectedMuscle !== 'All') {
+        const muscleKey = selectedMuscle.toLowerCase();
+        const targetMuscles = MUSCLE_MAP[muscleKey];
+
+        if (targetMuscles) {
+          result = result.filter((ex) => {
+            return ex.primary_muscles?.some((muscle) =>
+              targetMuscles.some((target) => muscle.toLowerCase().includes(target.toLowerCase()))
+            );
+          });
+        }
+      }
+
+      // Apply equipment and level filters
+      if (selectedEquipment || selectedLevel) {
+        result = result.filter((ex) => {
+          const matchesEquipment = selectedEquipment
+            ? ex.equipment?.toLowerCase() === selectedEquipment.toLowerCase()
+            : true;
+          const matchesLevel = selectedLevel
+            ? ex.level?.toLowerCase() === selectedLevel.toLowerCase()
+            : true;
+          return matchesEquipment && matchesLevel;
         });
       }
 
-      // Then apply search
+      // Apply search
       if (searchQuery.trim()) {
-        result = result.filter(ex =>
+        result = result.filter((ex) =>
           ex.name.toLowerCase().includes(searchQuery.toLowerCase())
         );
       }
@@ -103,58 +166,80 @@ export default function ExploreScreen() {
   };
 
   const clearFilters = () => {
-    setSelectedCategory(null);
+    setSelectedMuscle('All');
     setSelectedEquipment(null);
     setSelectedLevel(null);
     setSearchQuery('');
   };
 
-  const activeFilterCount = [selectedCategory, selectedEquipment, selectedLevel].filter(Boolean).length;
+  const activeFilterCount =
+    (selectedMuscle !== 'All' ? 1 : 0) +
+    (selectedEquipment ? 1 : 0) +
+    (selectedLevel ? 1 : 0);
 
   const renderExerciseCard = ({ item }: { item: Exercise }) => (
     <TouchableOpacity
       onPress={() => router.push(`/explore/${item.id}`)}
-      className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-gray-100"
+      className="mb-3 flex-1 overflow-hidden rounded-2xl bg-card-light dark:bg-card-dark"
+      style={{ aspectRatio: 0.8 }}
     >
-      <View className="flex-row">
-        {/* Exercise Image */}
-        <View className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden mr-4">
-          {item.image_urls && item.image_urls.length > 0 ? (
-            <Image
-              source={{ uri: item.image_urls[0] }}
-              className="w-full h-full"
-              resizeMode="cover"
-            />
-          ) : (
-            <View className="w-full h-full items-center justify-center">
-              <Text className="text-gray-400 text-xs">No image</Text>
+      {/* Exercise Image - Fixed 60% height */}
+      <View className="h-[60%] w-full bg-gray-200 dark:bg-gray-800">
+        {item.image_urls && item.image_urls.length > 0 ? (
+          <Image
+            source={{ uri: item.image_urls[0] }}
+            className="h-full w-full"
+            resizeMode="cover"
+          />
+        ) : (
+          <View className="h-full w-full items-center justify-center">
+            <Text className="text-gray-400 text-xs">No image</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Exercise Info - Fixed 40% height */}
+      <View className="h-[40%] p-2.5 justify-between">
+        {/* Exercise Name - Takes available space */}
+        <Text
+          style={{ fontFamily: fontFamily.semiBold }}
+          className="text-xs leading-tight text-textPrimary-light dark:text-textPrimary-dark"
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {item.name}
+        </Text>
+
+        {/* Primary Muscle - Single tag with ellipsis */}
+        {item.primary_muscles && item.primary_muscles.length > 0 && (
+          <View className="flex-row items-center mt-2">
+            <View className="rounded-full bg-primary/20 px-2 py-0.5 max-w-[70%]">
+              <Text
+                style={{ fontFamily: fontFamily.medium }}
+                className="text-[10px] capitalize text-textPrimary-light dark:text-textPrimary-dark"
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {item.primary_muscles[0]}
+              </Text>
             </View>
-          )}
-        </View>
-
-        {/* Exercise Info */}
-        <View className="flex-1">
-          <Text className="text-base font-semibold text-gray-900 mb-1">{item.name}</Text>
-          
-          <View className="flex-row flex-wrap gap-1 mb-2">
-            {item.primary_muscles?.map((muscle, idx) => (
-              <View key={idx} className="bg-yellow-50 px-2 py-0.5 rounded-full">
-                <Text className="text-xs text-gray-700 capitalize">{muscle}</Text>
-              </View>
-            ))}
           </View>
+        )}
 
-          <View className="flex-row items-center gap-2">
-            {item.equipment && (
-              <Text className="text-xs text-gray-500 capitalize">{item.equipment}</Text>
-            )}
-            {item.level && (
-              <>
-                <Text className="text-gray-300">•</Text>
-                <Text className="text-xs text-gray-500 capitalize">{item.level}</Text>
-              </>
-            )}
-          </View>
+        {/* Equipment and Difficulty */}
+        <View className="flex-row items-center justify-between mt-2">
+          {/* Equipment - With ellipsis */}
+          <Text
+            style={{ fontFamily: fontFamily.regular }}
+            className="flex-1 text-[10px] capitalize text-gray-500 dark:text-gray-400 mr-2"
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {item.equipment || 'bodyweight'}
+          </Text>
+
+          {/* Difficulty Dots */}
+          <DifficultyDots level={item.level} />
         </View>
       </View>
     </TouchableOpacity>
@@ -162,97 +247,173 @@ export default function ExploreScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-[#F8F9FB] items-center justify-center">
+      <View className="flex-1 items-center justify-center bg-background-light dark:bg-background-dark">
         <ActivityIndicator size="large" color="#F6F000" />
-        <Text className="mt-4 text-gray-600">Loading exercises...</Text>
+        <Text
+          style={{ fontFamily: fontFamily.medium }}
+          className="mt-4 text-gray-600 dark:text-gray-400"
+        >
+          Loading exercises...
+        </Text>
       </View>
     );
   }
 
+  // Handle empty state
+  if (exercises.length === 0) {
+    return (
+      <SafeAreaView className="flex-1 bg-background-light dark:bg-background-dark">
+        <View className="p-6">
+          <Text
+            style={{ fontFamily: fontFamily.semiBold }}
+            className="mb-4 text-2xl text-textPrimary-light dark:text-textPrimary-dark"
+          >
+            Exercise Library
+          </Text>
+        </View>
+
+        <View className="flex-1 items-center justify-center px-4">
+          <Text className="mb-4 text-6xl">💪</Text>
+          <Text
+            style={{ fontFamily: fontFamily.bold }}
+            className="mb-2 text-xl text-gray-900 dark:text-white"
+          >
+            No Exercises Yet
+          </Text>
+          <Text
+            style={{ fontFamily: fontFamily.regular }}
+            className="mb-6 text-center text-gray-500 dark:text-gray-400"
+          >
+            Exercise library is syncing in the background.{'\n'}
+            Pull down to refresh once sync is complete.
+          </Text>
+          <TouchableOpacity
+            onPress={handleRefresh}
+            className="rounded-xl bg-primary px-6 py-3"
+          >
+            <Text
+              style={{ fontFamily: fontFamily.semiBold }}
+              className="text-base text-gray-900"
+            >
+              Refresh Now
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <View className="flex-1 bg-[#F8F9FB]">
+    <SafeAreaView className="flex-1 bg-background-light dark:bg-background-dark">
       {/* Header */}
-      <View className="bg-white pt-12 pb-4 px-4 border-b border-gray-100">
-        <Text className="text-2xl font-bold text-[#0F0F0F] mb-4">Explore Exercises</Text>
+      <View className="px-6 pb-4">
+        <View className="flex-row items-center justify-between mb-4">
+          <Text
+            style={{ fontFamily: fontFamily.semiBold }}
+            className="text-2xl text-textPrimary-light dark:text-textPrimary-dark"
+          >
+            Exercise Library
+          </Text>
+          
+          {/* Results Count in corner */}
+          <View className="rounded-full bg-card-light dark:bg-card-dark px-3 py-1 border border-border-light dark:border-border-dark">
+            <Text
+              style={{ fontFamily: fontFamily.semiBold }}
+              className="text-xs text-gray-600 dark:text-gray-400"
+            >
+              {filteredExercises.length}
+            </Text>
+          </View>
+        </View>
 
         {/* Search Bar */}
-        <View className="flex-row items-center gap-2">
-          <View className="flex-1 bg-gray-100 rounded-xl px-4 py-3 flex-row items-center">
-            <Text className="text-gray-400 mr-2">🔍</Text>
-            <TextInput
-              placeholder="Search exercises..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              className="flex-1 text-base text-gray-900"
-              placeholderTextColor="#9CA3AF"
-            />
+        <View className="relative mb-4 flex justify-center">
+          <TextInput
+            placeholder="Search exercises..."
+            placeholderTextColor="gray"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={{ fontFamily: fontFamily.regular }}
+            className="rounded-full border-[0.5px] border-gray-300 bg-card-light py-3 pl-12 pr-4 text-base text-textPrimary-light dark:border-gray-700 dark:bg-card-dark dark:text-textPrimary-dark"
+          />
+          <View className="absolute left-4">
+            <Search size={20} color="gray" />
           </View>
+        </View>
 
+        {/* Muscle Group Filter */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {/* Filter Button */}
           <TouchableOpacity
             onPress={() => setShowFilters(true)}
-            className="bg-[#F6F000] rounded-xl px-4 py-3 flex-row items-center"
+            className="mr-2 flex-row items-center rounded-full border-[0.5px] border-gray-300 bg-card-light px-4 py-2 dark:border-gray-700 dark:bg-card-dark"
           >
-            <Text className="text-base font-semibold mr-1">⚙️</Text>
+            <Text
+              style={{ fontFamily: fontFamily.medium }}
+              className="mr-2 text-sm text-textPrimary-light dark:text-textPrimary-dark"
+            >
+              Filters
+            </Text>
+            <SlidersHorizontal size={14} color="gray" />
             {activeFilterCount > 0 && (
-              <View className="bg-gray-900 rounded-full w-5 h-5 items-center justify-center">
-                <Text className="text-white text-xs font-bold">{activeFilterCount}</Text>
+              <View className="ml-2 h-5 w-5 items-center justify-center rounded-full bg-primary">
+                <Text style={{ fontFamily: fontFamily.bold }} className="text-xs text-black">
+                  {activeFilterCount}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
-        </View>
 
-        {/* Active Filters Display */}
-        {activeFilterCount > 0 && (
-          <View className="flex-row items-center gap-2 mt-3">
-            <Text className="text-xs text-gray-500">Filters:</Text>
-            {selectedCategory && (
-              <View className="bg-yellow-100 px-2 py-1 rounded-full">
-                <Text className="text-xs text-gray-700 capitalize">{selectedCategory}</Text>
-              </View>
-            )}
-            {selectedEquipment && (
-              <View className="bg-yellow-100 px-2 py-1 rounded-full">
-                <Text className="text-xs text-gray-700 capitalize">{selectedEquipment}</Text>
-              </View>
-            )}
-            {selectedLevel && (
-              <View className="bg-yellow-100 px-2 py-1 rounded-full">
-                <Text className="text-xs text-gray-700 capitalize">{selectedLevel}</Text>
-              </View>
-            )}
-            <TouchableOpacity onPress={clearFilters}>
-              <Text className="text-xs text-[#F6F000] font-semibold">Clear all</Text>
+          {/* Muscle Group Pills */}
+          {MUSCLE_GROUPS.map((muscle) => (
+            <TouchableOpacity
+              key={muscle}
+              onPress={() => setSelectedMuscle(muscle)}
+              className={`mr-2 flex-row items-center rounded-full px-4 py-2 ${
+                selectedMuscle === muscle
+                  ? 'bg-primary'
+                  : 'border-[0.5px] border-gray-300 bg-card-light dark:border-gray-700 dark:bg-card-dark'
+              }`}
+            >
+              <Text
+                style={{ fontFamily: fontFamily.medium }}
+                className={`text-sm ${
+                  selectedMuscle === muscle
+                    ? 'text-black'
+                    : 'text-textPrimary-light dark:text-textPrimary-dark'
+                }`}
+              >
+                {muscle}
+              </Text>
             </TouchableOpacity>
-          </View>
-        )}
+          ))}
+        </ScrollView>
       </View>
 
-      {/* Results Count */}
-      <View className="px-4 py-3 bg-white border-b border-gray-100">
-        <Text className="text-sm text-gray-600">
-          {filteredExercises.length} {filteredExercises.length === 1 ? 'exercise' : 'exercises'} found
-        </Text>
-      </View>
-
-      {/* Exercise List */}
+      {/* Exercise Grid */}
       <FlatList
         data={filteredExercises}
         renderItem={renderExerciseCard}
-        keyExtractor={item => item.id}
-        contentContainerStyle={{ padding: 16 }}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        columnWrapperStyle={{ paddingHorizontal: 16, gap: 12 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: 100 }}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="#F6F000"
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#F6F000" />
         }
         ListEmptyComponent={
           <View className="items-center justify-center py-20">
-            <Text className="text-6xl mb-4">🔍</Text>
-            <Text className="text-lg font-semibold text-gray-900 mb-2">No exercises found</Text>
-            <Text className="text-gray-500 text-center">
+            <Text className="mb-4 text-6xl">🔍</Text>
+            <Text
+              style={{ fontFamily: fontFamily.bold }}
+              className="mb-2 text-lg text-gray-900 dark:text-white"
+            >
+              No exercises found
+            </Text>
+            <Text
+              style={{ fontFamily: fontFamily.regular }}
+              className="text-center text-gray-500 dark:text-gray-400"
+            >
               Try adjusting your filters or search query
             </Text>
           </View>
@@ -267,72 +428,121 @@ export default function ExploreScreen() {
         onRequestClose={() => setShowFilters(false)}
       >
         <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-white rounded-t-3xl pt-6 pb-8 px-4 max-h-[80%]">
+          <View className="max-h-[70%] rounded-t-3xl bg-white px-6 pb-8 pt-6 dark:bg-surface-dark">
             {/* Modal Header */}
-            <View className="flex-row items-center justify-between mb-6">
-              <Text className="text-xl font-bold text-gray-900">Filters</Text>
+            <View className="mb-6 flex-row items-center justify-between">
+              <Text
+                style={{ fontFamily: fontFamily.bold }}
+                className="text-xl text-gray-900 dark:text-white"
+              >
+                Filters
+              </Text>
               <TouchableOpacity onPress={() => setShowFilters(false)}>
-                <Text className="text-2xl text-gray-400">✕</Text>
+                <X size={24} color="gray" />
               </TouchableOpacity>
             </View>
 
-            <FlatList
-              data={[
-                { title: 'Category', options: filterOptions.categories, selected: selectedCategory, setter: setSelectedCategory },
-                { title: 'Equipment', options: filterOptions.equipment, selected: selectedEquipment, setter: setSelectedEquipment },
-                { title: 'Level', options: filterOptions.levels, selected: selectedLevel, setter: setSelectedLevel },
-              ]}
-              renderItem={({ item }) => (
-                <View className="mb-6">
-                  <Text className="text-sm font-semibold text-gray-700 mb-3">{item.title}</Text>
-                  <View className="flex-row flex-wrap gap-2">
-                    {item.options.map(option => (
-                      <TouchableOpacity
-                        key={option}
-                        onPress={() => item.setter(item.selected === option ? null : option)}
-                        className={`px-4 py-2 rounded-full border ${
-                          item.selected === option
-                            ? 'bg-[#F6F000] border-[#F6F000]'
-                            : 'bg-white border-gray-200'
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Equipment Filter */}
+              <View className="mb-6">
+                <Text
+                  style={{ fontFamily: fontFamily.semiBold }}
+                  className="mb-3 text-sm text-gray-700 dark:text-gray-300"
+                >
+                  Equipment
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {filterOptions.equipment.map((equipment) => (
+                    <TouchableOpacity
+                      key={equipment}
+                      onPress={() =>
+                        setSelectedEquipment(selectedEquipment === equipment ? null : equipment)
+                      }
+                      className={`rounded-full border px-4 py-2 ${
+                        selectedEquipment === equipment
+                          ? 'border-primary bg-primary'
+                          : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-surface-dark'
+                      }`}
+                    >
+                      <Text
+                        style={{ fontFamily: fontFamily.medium }}
+                        className={`text-sm capitalize ${
+                          selectedEquipment === equipment
+                            ? 'text-gray-900'
+                            : 'text-gray-600 dark:text-gray-400'
                         }`}
                       >
-                        <Text
-                          className={`text-sm capitalize ${
-                            item.selected === option ? 'text-gray-900 font-semibold' : 'text-gray-600'
-                          }`}
-                        >
-                          {option}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                        {equipment}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              )}
-              keyExtractor={item => item.title}
-            />
+              </View>
+
+              {/* Level Filter */}
+              <View className="mb-6">
+                <Text
+                  style={{ fontFamily: fontFamily.semiBold }}
+                  className="mb-3 text-sm text-gray-700 dark:text-gray-300"
+                >
+                  Difficulty Level
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {filterOptions.levels.map((level) => (
+                    <TouchableOpacity
+                      key={level}
+                      onPress={() => setSelectedLevel(selectedLevel === level ? null : level)}
+                      className={`rounded-full border px-4 py-2 ${
+                        selectedLevel === level
+                          ? 'border-primary bg-primary'
+                          : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-surface-dark'
+                      }`}
+                    >
+                      <Text
+                        style={{ fontFamily: fontFamily.medium }}
+                        className={`text-sm capitalize ${
+                          selectedLevel === level
+                            ? 'text-gray-900'
+                            : 'text-gray-600 dark:text-gray-400'
+                        }`}
+                      >
+                        {level}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
 
             {/* Footer Buttons */}
-            <View className="flex-row gap-3 mt-4">
+            <View className="mt-4 flex-row gap-3">
               <TouchableOpacity
                 onPress={() => {
                   clearFilters();
                   setShowFilters(false);
                 }}
-                className="flex-1 bg-gray-100 rounded-xl py-4 items-center"
+                className="flex-1 items-center rounded-xl bg-gray-100 py-4 dark:bg-gray-800"
               >
-                <Text className="text-base font-semibold text-gray-700">Clear All</Text>
+                <Text
+                  style={{ fontFamily: fontFamily.semiBold }}
+                  className="text-base text-gray-700 dark:text-gray-300"
+                >
+                  Clear All
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => setShowFilters(false)}
-                className="flex-1 bg-[#F6F000] rounded-xl py-4 items-center"
+                className="flex-1 items-center rounded-xl bg-primary py-4"
               >
-                <Text className="text-base font-semibold text-gray-900">Apply Filters</Text>
+                <Text style={{ fontFamily: fontFamily.semiBold }} className="text-base text-gray-900">
+                  Apply Filters
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }

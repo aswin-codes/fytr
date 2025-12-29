@@ -1,4 +1,4 @@
-import { TouchableOpacity,  Text, View,  } from 'react-native'
+import { TouchableOpacity,  Text, View, Button } from 'react-native'
 import React, { useEffect, } from 'react'
 import { useAuth } from '@/src/auth/useAuth'
 import { userStorage } from '@/src/store/userStorage';
@@ -39,9 +39,7 @@ const HomeScreen = () => {
   return (
     <View className='flex-1 justify-center items-center'>
       <Text>HomeScreen</Text>
-      <TouchableOpacity onPress={handleLogout}>
-        <Text>Logout</Text>
-      </TouchableOpacity>
+      <Button title="Logout" onPress={handleLogout} />
     </View>
   )
 }
