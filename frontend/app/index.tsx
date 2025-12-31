@@ -18,7 +18,7 @@ export default function Home() {
   useEffect(() => {
     if (loading) return;
     
-    router.replace('/(app)/explore');
+    router.replace('/(app)/ai');
     const handleRouting = async () => {
       // Logged in → check onboarding
       const storedUser: UserType | null = await userStorage.getUser();

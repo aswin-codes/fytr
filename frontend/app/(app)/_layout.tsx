@@ -23,7 +23,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          height: 70,
+          
           backgroundColor: colorScheme === 'dark' ? '#1d1c1c' : '#FFFFFF',
           borderTopWidth: 0,
           elevation: 0,
@@ -52,7 +52,7 @@ export default function TabsLayout() {
 
       {/* AI FORM (CENTER) */}
       <Tabs.Screen
-        name="ai/index"
+        name="ai"
         options={{
           tabBarIcon: () => (
             <View className="h-16 w-16 -mt-5 items-center justify-center rounded-full bg-primary shadow-lg">

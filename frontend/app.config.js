@@ -66,7 +66,8 @@ export default {
         "backgroundColor": "#F6F000"
       },
       "package": "com.anonymous.fytr",
-      "googleServicesFile": process.env.GOOGLE_SERVICES_JSON 
+      "googleServicesFile": process.env.GOOGLE_SERVICES_JSON ,
+      edgeToEdgeEnabled: true
     },
     "extra": {
       "router": {},

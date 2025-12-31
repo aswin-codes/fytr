@@ -8,11 +8,13 @@ import { useAuth } from '@/src/auth/useAuth'
 import { FirebaseError } from 'firebase/app'
 import { handleFirebaseAuthError } from '@/src/utils/firebaseAuthError'
 import { loginWithGoogle } from '@/src/controllers/authController'
+import { useOnboardingStore } from '@/src/store/onboardingStore'
 
 const GetStartedScreen = () => {
   const router = useRouter();
   const {  googleLogin } = useAuth();
   const [loading, setLoading] = useState(false);
+  const { resetOnboarding } = useOnboardingStore();
 
   const handleCreateAccountScreen = () => {
     router.push('/(root)/CreateAccountScreen');
@@ -30,6 +32,7 @@ const GetStartedScreen = () => {
       if (response.user.onboarding_completed) {
         router.push('/(app)/home');
       } else {
+        resetOnboarding();
         router.push('/(onboarding)/OnboardingScreen1');
       }
     } catch (error) {

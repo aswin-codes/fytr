@@ -22,6 +22,7 @@ import { useAuth } from '@/src/auth/useAuth';
 import { FirebaseError } from 'firebase/app';
 import { handleFirebaseAuthError } from '@/src/utils/firebaseAuthError';
 import { registerEmailAndPassword } from '@/src/controllers/authController';
+import { useOnboardingStore } from '@/src/store/onboardingStore';
 
 const CreateAccountScreen = () => {
     const [fullName, setFullName] = useState('');
@@ -31,6 +32,7 @@ const CreateAccountScreen = () => {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const {  createAccountEmailPassword } = useAuth();
+  const { resetOnboarding } = useOnboardingStore();
 
     const { colorScheme } = useColorScheme();
 
@@ -81,8 +83,10 @@ const CreateAccountScreen = () => {
             router.dismissAll();
             if (response.user.onboarding_completed) {
                 router.replace('/(app)/home')
+                
             } else {
-                router.replace('/(onboarding)/OnboardingScreen1')
+              resetOnboarding();
+              router.replace('/(onboarding)/OnboardingScreen1')                
             }
         } catch (error) {
             console.error("❌ Error in handleCreateAccount:", error);

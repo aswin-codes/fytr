@@ -22,6 +22,7 @@ import { useAuth } from '@/src/auth/useAuth';
 import { handleFirebaseAuthError } from '@/src/utils/firebaseAuthError';
 import { FirebaseError } from 'firebase/app';
 import { loginUserWithEmailAndPassword } from '@/src/controllers/authController';
+import { useOnboardingStore } from '@/src/store/onboardingStore';
 
 const LoginScreen = () => {
     const [email, setEmail] = useState('');
@@ -31,6 +32,7 @@ const LoginScreen = () => {
     const {  loginEmailPassword } = useAuth();
     const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { resetOnboarding } = useOnboardingStore();
 
     const [errors, setErrors] = useState<{
         email?: string;
@@ -70,6 +72,7 @@ const LoginScreen = () => {
             if (response.user.onboarding_completed) {
                 router.replace('/(app)/home')
             } else {
+                resetOnboarding();
                 router.replace('/(onboarding)/OnboardingScreen1')
             }
         } catch (error) {
@@ -191,7 +194,7 @@ const LoginScreen = () => {
                                 >
                                     <Text
                                         style={{ fontFamily: fontFamily.semiBold }}
-                                        className="text-primary text-sm"
+                                        className="text-primary-glow dark:text-primary text-sm"
                                     >
                                         Forgot Password?
                                     </Text>
