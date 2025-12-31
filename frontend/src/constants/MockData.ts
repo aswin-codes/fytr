@@ -60,7 +60,7 @@ export const aiFormAnalyses : AiAnalysis[] = [
         actions: {
             canSave: true,
             canDelete: true,
-            isCurrent: true, 
+            isCurrent: false, 
         },
     },
     {

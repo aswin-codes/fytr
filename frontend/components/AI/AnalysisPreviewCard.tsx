@@ -5,10 +5,12 @@ import { generateThumbnail } from '@/src/utils/extractThumbnail';
 import { CircleAlert, CircleCheck, Play, Trash2, TriangleAlert } from 'lucide-react-native';
 import { fontFamily } from '@/src/theme/fontFamily';
 import { getMonth } from '@/src/constants/Date';
+import { useRouter } from 'expo-router';
 
 const AnalysisPreviewCard = ({ analysis }: { analysis: AiAnalysis }) => {
     const [image, setImage] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const router = useRouter();
 
     const getThumbnail = async () => {
         try {
@@ -59,6 +61,34 @@ const AnalysisPreviewCard = ({ analysis }: { analysis: AiAnalysis }) => {
         return `${monthNames[date.getMonth()]} ${date.getDate()} • ${formatTime(date)}`;
     }
 
+    const handlePlayPress = (e: any) => {
+        e.stopPropagation();
+        // Navigate to results screen with entire analysis object
+        router.push({
+            pathname: '/(app)/ai/ResultsScreen',
+            params: { 
+                analysis: JSON.stringify(analysis)
+            }
+        });
+    }
+
+    const handleCardPress = () => {
+        // Navigate when user taps anywhere on the card
+        router.push({
+            pathname: '/(app)/ai/ResultsScreen',
+            params: { 
+                analysis: JSON.stringify(analysis)
+            }
+        });
+    }
+
+    const handleDeletePress = (e: any) => {
+        e.stopPropagation(); // Prevent card press
+        // Handle delete action
+        console.log('Delete analysis:', analysis.id);
+        // Add your delete logic here
+    }
+
     useEffect(() => {
         getThumbnail();
     }, [analysis.videoUrl])
@@ -66,7 +96,11 @@ const AnalysisPreviewCard = ({ analysis }: { analysis: AiAnalysis }) => {
     const scoreConfig = getScoreConfig();
 
     return (
-        <View className='w-full bg-white dark:bg-card-dark rounded-2xl p-4 mb-4 shadow-sm'>
+        <TouchableOpacity 
+            onPress={handleCardPress}
+            activeOpacity={0.7}
+            className='w-full bg-white dark:bg-card-dark rounded-2xl p-4 mb-4 shadow-sm'
+        >
             <View className='flex-row '>
                 {/* Thumbnail with Play Overlay */}
                 <View className='w-20 h-20 rounded-2xl overflow-hidden bg-gray-200 relative'>
@@ -111,7 +145,10 @@ const AnalysisPreviewCard = ({ analysis }: { analysis: AiAnalysis }) => {
 
                     {/* Action Buttons */}
                     <View className="flex-row gap-2 items-center">
-                        <TouchableOpacity className="flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-1.5">
+                        <TouchableOpacity 
+                            onPress={handlePlayPress}
+                            className="flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-1.5"
+                        >
                             <Play size={10} color="#000" fill="#000" />
                             <Text 
                                 style={{ fontFamily: fontFamily.medium }} 
@@ -121,7 +158,10 @@ const AnalysisPreviewCard = ({ analysis }: { analysis: AiAnalysis }) => {
                             </Text>
                         </TouchableOpacity>
                         
-                        <TouchableOpacity className="items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg w-7 h-7">
+                        <TouchableOpacity 
+                            onPress={handleDeletePress}
+                            className="items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg w-7 h-7"
+                        >
                             <Trash2 size={12} color="#6b7280" strokeWidth={2} />
                         </TouchableOpacity>
                     </View>
@@ -137,14 +177,13 @@ const AnalysisPreviewCard = ({ analysis }: { analysis: AiAnalysis }) => {
                     </Text>
                     <Text 
                         style={{ fontFamily: fontFamily.bold, color: scoreConfig.color }} 
-
                         className="text-sm"
                     >
                         {analysis.score}%
                     </Text>
                 </View>
             </View>
-        </View>
+        </TouchableOpacity>
     )
 }
 

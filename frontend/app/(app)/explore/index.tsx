@@ -18,7 +18,7 @@ import { Exercise } from '@/src/types/exerciseTypes';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fontFamily } from '@/src/theme/fontFamily';
 import { Search, SlidersHorizontal, X } from 'lucide-react-native';
-import {ExerciseCard} from '@/components/Explore/ExerciseCard';
+import { ExerciseCard } from '@/components/Explore/ExerciseCard';
 
 // Muscle groups for filtering
 const MUSCLE_GROUPS = [
@@ -160,7 +160,7 @@ export default function ExploreScreen() {
     (selectedEquipment ? 1 : 0) +
     (selectedLevel ? 1 : 0);
 
-  
+
 
   if (loading) {
     return (
@@ -231,7 +231,7 @@ export default function ExploreScreen() {
           >
             Exercise Library
           </Text>
-          
+
           {/* Results Count in corner */}
           <View className="rounded-full bg-card-light dark:bg-card-dark px-3 py-1 border border-border-light dark:border-border-dark">
             <Text
@@ -286,19 +286,17 @@ export default function ExploreScreen() {
             <TouchableOpacity
               key={muscle}
               onPress={() => setSelectedMuscle(muscle)}
-              className={`mr-2 flex-row items-center rounded-full px-4 py-2 ${
-                selectedMuscle === muscle
-                  ? 'bg-primary'
-                  : 'border-[0.5px] border-gray-300 bg-card-light dark:border-gray-700 dark:bg-card-dark'
-              }`}
+              className={`mr-2 flex-row items-center rounded-full px-4 py-2 ${selectedMuscle === muscle
+                ? 'bg-primary'
+                : 'border-[0.5px] border-gray-300 bg-card-light dark:border-gray-700 dark:bg-card-dark'
+                }`}
             >
               <Text
                 style={{ fontFamily: fontFamily.medium }}
-                className={`text-sm ${
-                  selectedMuscle === muscle
-                    ? 'text-black'
-                    : 'text-textPrimary-light dark:text-textPrimary-dark'
-                }`}
+                className={`text-sm ${selectedMuscle === muscle
+                  ? 'text-black'
+                  : 'text-textPrimary-light dark:text-textPrimary-dark'
+                  }`}
               >
                 {muscle}
               </Text>
@@ -375,19 +373,17 @@ export default function ExploreScreen() {
                       onPress={() =>
                         setSelectedEquipment(selectedEquipment === equipment ? null : equipment)
                       }
-                      className={`rounded-full border px-4 py-2 ${
-                        selectedEquipment === equipment
-                          ? 'border-primary bg-primary'
-                          : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-surface-dark'
-                      }`}
+                      className={`rounded-full border px-4 py-2 ${selectedEquipment === equipment
+                        ? 'border-primary bg-primary'
+                        : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-surface-dark'
+                        }`}
                     >
                       <Text
                         style={{ fontFamily: fontFamily.medium }}
-                        className={`text-sm capitalize ${
-                          selectedEquipment === equipment
-                            ? 'text-gray-900'
-                            : 'text-gray-600 dark:text-gray-400'
-                        }`}
+                        className={`text-sm capitalize ${selectedEquipment === equipment
+                          ? 'text-gray-900'
+                          : 'text-gray-600 dark:text-gray-400'
+                          }`}
                       >
                         {equipment}
                       </Text>
@@ -409,19 +405,17 @@ export default function ExploreScreen() {
                     <TouchableOpacity
                       key={level}
                       onPress={() => setSelectedLevel(selectedLevel === level ? null : level)}
-                      className={`rounded-full border px-4 py-2 ${
-                        selectedLevel === level
-                          ? 'border-primary bg-primary'
-                          : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-surface-dark'
-                      }`}
+                      className={`rounded-full border px-4 py-2 ${selectedLevel === level
+                        ? 'border-primary bg-primary'
+                        : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-surface-dark'
+                        }`}
                     >
                       <Text
                         style={{ fontFamily: fontFamily.medium }}
-                        className={`text-sm capitalize ${
-                          selectedLevel === level
-                            ? 'text-gray-900'
-                            : 'text-gray-600 dark:text-gray-400'
-                        }`}
+                        className={`text-sm capitalize ${selectedLevel === level
+                          ? 'text-gray-900'
+                          : 'text-gray-600 dark:text-gray-400'
+                          }`}
                       >
                         {level}
                       </Text>

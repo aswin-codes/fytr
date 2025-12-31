@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { fontFamily } from '@/src/theme/fontFamily'
 import { Camera } from 'lucide-react-native'
 import { aiFormAnalyses } from '@/src/constants/MockData'
-import AnalysisPreviewCard from '@/components/Explore/AnalysisPreviewCard'
+import AnalysisPreviewCard from '@/components/AI/AnalysisPreviewCard'
 import { useRouter } from 'expo-router'
 
 const FormScreen = () => {
