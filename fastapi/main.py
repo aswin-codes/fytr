@@ -77,7 +77,7 @@ async def analyze_video_with_gemini(video_path: str, exercise_name: Optional[str
         logger.info(f"Uploading file to Gemini: {video_path}")
         
         # 1. Upload
-        file_info = client.files.upload(path=video_path, config=types.UploadFileConfig(mime_type="video/mp4"))
+        file_info = client.files.upload(file=video_path, config=types.UploadFileConfig(mime_type="video/mp4"))
         
         # FIX: Ensure we get the name correctly (handle object vs string)
         uploaded_file_name = file_info.name if hasattr(file_info, 'name') else str(file_info)
