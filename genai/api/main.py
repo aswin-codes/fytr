@@ -35,7 +35,7 @@ if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY is missing!")
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-MODEL_NAME = "gemini-2.5-flash"
+MODEL_NAME = "gemini-2.5-flash"  # Use correct model name
 
 ANALYSIS_PROMPT = """Analyze this gym workout video for exercise form.
 Return ONLY valid JSON:
@@ -89,7 +89,7 @@ async def analyze_video_with_gemini(video_path: str, exercise_name: Optional[str
             if "FAILED" in state:
                 raise Exception("Gemini video processing failed.")
             
-            if time.time() - start_time > 30:
+            if time.time() - start_time > 45:
                 logger.warning("Timeout waiting for video processing.")
                 break
                 
@@ -106,7 +106,11 @@ async def analyze_video_with_gemini(video_path: str, exercise_name: Optional[str
                     types.Part.from_uri(file_uri=current_file.uri, mime_type="video/mp4"),
                     types.Part.from_text(text=prompt)
                 ])
-            ]
+            ],
+            config=types.GenerateContentConfig(
+                temperature=0.4,
+                max_output_tokens=2048,
+            )
         )
         
         return parse_gemini_response(response.text)
@@ -129,7 +133,9 @@ async def analyze_video(
         logger.info(f"Received request: {video.filename}")
         suffix = os.path.splitext(video.filename)[1] or ".mp4"
         
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        # Use /tmp for Vercel
+        temp_dir = "/tmp" if os.path.exists("/tmp") else None
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=temp_dir) as tmp:
             shutil.copyfileobj(video.file, tmp)
             temp_path = tmp.name
         
@@ -140,6 +146,13 @@ async def analyze_video(
         return {
             "id": str(uuid.uuid4()),
             "recordedAt": datetime.utcnow().isoformat(),
+            "durationSeconds": 0,
+            "videoUrl": "",
+            "actions": {
+                "canSave": True,
+                "canDelete": True,
+                "isCurrent": True
+            },
             **analysis
         }
 
@@ -150,6 +163,13 @@ async def analyze_video(
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
 
+@app.get("/")
+async def root():
+    return {"status": "healthy", "service": "Gym Form Analysis API"}
+
 @app.get("/health")
 async def health():
     return {"status": "alive", "gemini_key_set": bool(GEMINI_API_KEY)}
+
+# ✅ THIS IS CRITICAL FOR VERCEL - Export the app
+handler = app
