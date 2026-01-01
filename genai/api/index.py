@@ -171,10 +171,4 @@ async def root():
 async def health():
     return {"status": "alive", "gemini_key_set": bool(GEMINI_API_KEY)}
 
-# ✅ THIS IS CRITICAL FOR VERCEL - Export the app as handler
-try:
-    from vercel_asgi import ASGIApp
-    handler = ASGIApp(app)
-except ImportError:
-    # Fallback for local development
-    handler = app
+handler = app 
