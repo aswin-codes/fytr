@@ -1,7 +1,7 @@
 import { StyleSheet, View, Pressable, Text, Alert } from 'react-native'
 import React, { useState, useRef, useEffect } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { CameraView, CameraType, useCameraPermissions, useMicrophonePermissions } from 'expo-camera'
+import { CameraView, CameraType, useCameraPermissions, useMicrophonePermissions, VideoQuality, Camera } from 'expo-camera'
 import { useRouter } from 'expo-router'
 import { fontFamily } from '@/src/theme/fontFamily'
 import CameraHeader from '@/components/AI/CameraHeader'
@@ -248,6 +248,7 @@ const CameraScreen = () => {
         ref={cameraRef}
         style={styles.camera} 
         facing={facing}
+        videoQuality={'480p'}
       >
         <SafeAreaView style={styles.container}>
           <CameraHeader

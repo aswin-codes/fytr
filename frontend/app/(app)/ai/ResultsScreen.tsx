@@ -9,6 +9,7 @@ import AISmartTip from '@/components/AI/AISmartTipCard'
 import { fontFamily } from '@/src/theme/fontFamily'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { AiAnalysis } from '@/src/types/aiAnalysisTypes'
+import DetectedExerciseCard from '@/components/AI/DetectedExerciseCard'
 
 const ResultsScreen = () => {
     const { analysis } = useLocalSearchParams<{ analysis: string }>();
@@ -85,7 +86,10 @@ const ResultsScreen = () => {
                 <View style={styles.contentContainer}>
                     <VideoView style={styles.video} player={player} allowsPictureInPicture />
                 </View>
-                <View className="mt-5">
+                <View className="mt-5 mx-5">
+                    <DetectedExerciseCard exerciseName={result.exercise} />
+                </View>
+                <View className="mt-5 ">
                     <CircularScore score={result.score} maxScore={100} label={result.verdict} />
                 </View>
                 <View className="mx-5 mt-5">

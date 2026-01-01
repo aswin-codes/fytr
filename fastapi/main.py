@@ -46,17 +46,65 @@ async def health():
 
 MODEL_NAME = "gemini-2.5-flash"  # Use correct model name
 
-ANALYSIS_PROMPT = """Analyze this gym workout video for exercise form.
-Return ONLY valid JSON:
-{{
+ANALYSIS_PROMPT = """
+You are a STRICT professional strength & conditioning coach and biomechanics analyst.
+
+Analyze the provided gym workout video with ZERO positivity bias.
+Be critical. Penalize unsafe or inefficient movement patterns.
+
+IMPORTANT RULES:
+- DO NOT be encouraging by default.
+- If form is unsafe or inefficient, LOWER the score.
+- Average gym form should score between 50–70.
+- Only near-perfect technique may score above 85.
+- Beginners with visible mistakes MUST score below 70.
+- Unsafe posture MUST be marked as "critical".
+
+SCORING RUBRIC:
+90–100 → Excellent / Elite form (rare)
+75–89  → Good form with minor issues
+60–74  → Average form, needs improvement
+40–59  → Poor form, multiple issues
+<40    → Dangerous form, high injury risk
+
+STATUS RULES:
+- score ≥ 80 → "good"
+- score 60–79 → "warning"
+- score < 60 → "critical"
+
+ANALYSIS REQUIREMENTS:
+- Identify joint alignment issues (knees, hips, spine, neck).
+- Identify balance, tempo, range of motion, and control issues.
+- If knees cave, back rounds, neck bends, or momentum is used → PENALIZE.
+- If video quality is unclear → LOWER score and mention uncertainty.
+
+OUTPUT RULES (STRICT):
+- Return ONLY valid JSON.
+- No markdown.
+- No explanations outside JSON.
+- No emojis.
+- No extra keys.
+- Arrays must contain real coaching feedback (not generic praise).
+
+JSON FORMAT:
+{
   "exercise": "{exercise_name}",
-  "score": 82,
-  "verdict": "Great Form!",
-  "status": "good",
-  "positives": ["list"],
-  "improvements": ["list"],
-  "aiCoachTip": "string"
-}}"""
+  "score": number,
+  "verdict": string,
+  "status": "good" | "warning" | "critical",
+  "positives": [
+    "Short factual statement",
+    "Short factual statement"
+  ],
+  "improvements": [
+    "Specific biomechanical issue",
+    "Specific biomechanical issue",
+    "Specific biomechanical issue"
+  ],
+  "aiCoachTip": "One concise corrective coaching cue"
+}
+"""
+
 
 def parse_gemini_response(response_text: str) -> dict:
     try:

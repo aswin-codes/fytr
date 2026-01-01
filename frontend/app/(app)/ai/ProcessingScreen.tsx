@@ -1,12 +1,15 @@
 // app/(app)/ai/ProcessingScreen.tsx
-import { StyleSheet, Text, View, Animated, ScrollView } from 'react-native'
+import { StyleSheet, Text, View, Animated, ScrollView, Alert } from 'react-native'
 import React, { useState, useEffect, useRef } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { fontFamily } from '@/src/theme/fontFamily'
-import { aiFormAnalyses } from '@/src/constants/MockData'
 import AIVisionCard from '@/components/AI/AIVisonCard'
 import { Sparkles, Check, Loader } from 'lucide-react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
+import * as FileSystem from 'expo-file-system'
+import { Video } from 'react-native-compressor'
+import { processVideoAnalysis, validateVideoFile } from '@/src/controllers/videoController'
+import { AiAnalysis } from '@/src/types/aiAnalysisTypes'
 
 interface ProcessingStep {
     id: string
@@ -16,18 +19,20 @@ interface ProcessingStep {
 }
 
 const ProcessingScreen = () => {
-    const { videoUri } = useLocalSearchParams<{ videoUri?: string }>()
+    const { videoUri, exercise } = useLocalSearchParams<{ videoUri?: string; exercise?: string }>()
     const router = useRouter()
 
-    const result = aiFormAnalyses[0]
-    const videoURL = videoUri! 
+    const videoURL = videoUri!
 
     const [progress, setProgress] = useState(0)
+    const [compressedVideoUri, setCompressedVideoUri] = useState<string | null>(null)
+    const [analysisResult, setAnalysisResult] = useState<AiAnalysis | null>(null)
+    const [uploadProgress, setUploadProgress] = useState(0)
     const [steps, setSteps] = useState<ProcessingStep[]>([
-        { id: '1', label: 'Upload complete', status: 'complete' },
-        { id: '2', label: 'Detecting posture', subLabel: 'Scanning skeletal points...', status: 'pending' },
-        { id: '3', label: 'Evaluating movement', status: 'pending' },
-        { id: '4', label: 'Generating feedback', status: 'pending' },
+        { id: '1', label: 'Compressing video', subLabel: 'Optimizing file size...', status: 'pending' },
+        { id: '2', label: 'Uploading video', subLabel: 'Sending to AI...', status: 'pending' },
+        { id: '3', label: 'AI Processing', subLabel: 'Analyzing your form...', status: 'pending' },
+        { id: '4', label: 'Generating feedback', subLabel: 'Creating insights...', status: 'pending' },
     ])
 
     const progressAnim = useRef(new Animated.Value(0)).current
@@ -45,33 +50,175 @@ const ProcessingScreen = () => {
         simulateProcessing()
     }, [])
 
+    useEffect(() => {
+        // Log initial video file info
+        const checkFileInfo = async () => {
+            try {
+                const fileInfo = await FileSystem.getInfoAsync(videoURL)
+                if (fileInfo.exists) {
+                    console.log('Original video size:', (fileInfo.size / (1024 * 1024)).toFixed(2), 'MB')
+                }
+            } catch (error) {
+                console.error('Error checking file info:', error)
+            }
+        }
+        
+        checkFileInfo()
+    }, [videoURL])
+
+    const compressVideo = async (): Promise<string> => {
+        return new Promise(async (resolve, reject) => {
+            try {
+                console.log('Starting video compression...')
+                
+                // Compress video with manual settings to target ~3MB max
+                const compressedUri = await Video.compress(
+                    videoURL,
+                    {
+                        compressionMethod: 'manual',
+                        // Lower bitrate for smaller file size
+                        bitrate: 250000, // 250 Kbps - adjust if needed
+                        maxSize: 480, // Max dimension (width or height)
+                        minimumFileSizeForCompress: 0, // Compress all files
+                    },
+                    (progressValue) => {
+                        // Update compression progress (0-1 range)
+                        const percentComplete = Math.round(progressValue * 100)
+                        console.log('Compression progress:', percentComplete + '%')
+                        
+                        // Update substep for compression (0-25% of total progress)
+                        const mappedProgress = Math.round(progressValue * 25)
+                        setProgress(mappedProgress)
+                    }
+                )
+
+                // Check compressed file size
+                const compressedInfo = await FileSystem.getInfoAsync(compressedUri)
+                if (compressedInfo.exists) {
+                    const sizeInMB = compressedInfo.size / (1024 * 1024)
+                    console.log('Compressed video size:', sizeInMB.toFixed(2), 'MB')
+                    
+                    // If still too large, warn but continue
+                    if (sizeInMB > 3.5) {
+                        console.warn('⚠️ Compressed video is still larger than 3.5MB. Consider adjusting compression settings.')
+                    } else {
+                        console.log('✅ Video compressed successfully within size limit')
+                    }
+                }
+
+                console.log('Compression complete. Compressed URI:', compressedUri)
+                resolve(compressedUri)
+            } catch (error) {
+                console.error('Error compressing video:', error)
+                reject(error)
+            }
+        })
+    }
+
     const simulateProcessing = async () => {
-        await delay(1000)
-
-        updateStep('2', 'loading')
-        await animateProgress(0, 30, 3000)
-        updateStep('2', 'complete')
         await delay(500)
 
-        updateStep('3', 'loading', 'Analyzing motion patterns...')
-        await animateProgress(30, 70, 3500)
-        updateStep('3', 'complete')
-        await delay(500)
+        // Step 1: Compress video
+        let finalVideoUri = videoURL
+        try {
+            updateStep('1', 'loading')
+            const compressed = await compressVideo()
+            setCompressedVideoUri(compressed)
+            finalVideoUri = compressed
+            await animateProgress(0, 25, 500) // 0-25%
+            updateStep('1', 'complete')
+            await delay(500)
 
-        updateStep('4', 'loading', 'Creating personalized insights...')
-        await animateProgress(70, 100, 3000)
-        updateStep('4', 'complete')
-        await delay(1000)
+            // Validate compressed video size
+            const validation = await validateVideoFile(compressed)
+            if (!validation.valid) {
+                Alert.alert('Error', validation.error || 'Video validation failed')
+                router.back()
+                return
+            }
+            console.log(`✅ Video validated: ${validation.sizeMB?.toFixed(2)} MB`)
+        } catch (error) {
+            console.error('Compression failed, using original video:', error)
+            // Fallback to original video if compression fails
+            setCompressedVideoUri(videoURL)
+            finalVideoUri = videoURL
+            updateStep('1', 'complete')
+            await animateProgress(0, 25, 500)
+            await delay(500)
+        }
 
-        router.replace({
-          pathname: '/(app)/ai/ResultsScreen',
-          params: { 
-            analysis: JSON.stringify({
-              ...result,
-              videoUrl: videoURL
+        // Step 2 & 3 & 4: Upload and AI Processing (combined in API call)
+        try {
+            updateStep('2', 'loading')
+            
+            console.log('🎬 Starting video analysis with API...')
+            console.log('Video URI:', finalVideoUri)
+            console.log('Exercise:', exercise || 'Auto-detect')
+
+            // Call the real API
+            const analysis = await processVideoAnalysis(
+                finalVideoUri,
+                exercise,
+                (uploadProg) => {
+                    // Map upload progress to 25-50% of total
+                    const mappedProgress = 25 + (uploadProg * 25)
+                    setProgress(Math.round(mappedProgress))
+                    setUploadProgress(uploadProg)
+                    
+                    if (uploadProg >= 1) {
+                        // Upload complete, move to AI processing
+                        updateStep('2', 'complete')
+                        updateStep('3', 'loading')
+                    }
+                }
+            )
+
+            // Upload complete (handled in callback)
+            // AI Processing happens on server
+            await animateProgress(50, 80, 1000) // Simulate AI processing time
+            updateStep('3', 'complete')
+            await delay(500)
+
+            // Step 4: Feedback generated (from API response)
+            updateStep('4', 'loading')
+            await animateProgress(80, 100, 1000)
+            updateStep('4', 'complete')
+            
+            setAnalysisResult(analysis)
+            console.log('✅ Analysis complete:', analysis)
+            
+            await delay(1000)
+
+            // Navigate to results with API response
+            router.replace({
+                pathname: '/(app)/ai/ResultsScreen',
+                params: { 
+                    analysis: JSON.stringify({
+                        ...analysis,
+                        videoUrl: finalVideoUri // Use local compressed video for playback
+                    })
+                }
             })
-          }
-        });
+        } catch (error: any) {
+            console.error('❌ API Processing failed:', error)
+            
+            // Show user-friendly error
+            Alert.alert(
+                'Processing Failed',
+                error.message || 'Failed to analyze video. Please try again.',
+                [
+                    {
+                        text: 'Try Again',
+                        onPress: () => simulateProcessing()
+                    },
+                    {
+                        text: 'Cancel',
+                        onPress: () => router.back(),
+                        style: 'cancel'
+                    }
+                ]
+            )
+        }
     }
 
     const updateStep = (id: string, status: 'pending' | 'loading' | 'complete', subLabel?: string) => {

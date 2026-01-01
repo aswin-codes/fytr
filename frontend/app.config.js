@@ -17,6 +17,7 @@ export default {
       "expo-router",
       "expo-font",
       "expo-web-browser",
+      "react-native-compressor",
       [
         "expo-build-properties",
         {
