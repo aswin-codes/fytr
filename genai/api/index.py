@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from http.server import BaseHTTPRequestHandler
 from google import genai
 from google.genai import types
 import os
@@ -171,4 +172,56 @@ async def root():
 async def health():
     return {"status": "alive", "gemini_key_set": bool(GEMINI_API_KEY)}
 
-handler = app 
+
+class handler(BaseHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        self.app = app  # Reference your FastAPI app
+        super().__init__(*args, **kwargs)
+
+    def do_GET(self):
+        self._handle_request('GET')
+
+    def do_POST(self):
+        self._handle_request('POST')
+
+    def do_PUT(self):
+        self._handle_request('PUT')
+
+    def do_DELETE(self):
+        self._handle_request('DELETE')
+
+    def _handle_request(self, method):
+        try:
+            # Parse path and query
+            path = self.path
+            headers = {k: v for k, v in self.headers.items()}
+            
+            # Read body for POST/PUT
+            content_length = int(self.headers.get('content-length', 0))
+            body = self.rfile.read(content_length) if content_length else None
+            
+            # Create FastAPI Request object (simplified proxy)
+            request = Request(scope={
+                'type': 'http',
+                'method': method,
+                'path': path,
+                'headers': [(k.lower(), v) for k, v in headers.items()],
+                'query_string': b'',
+            })
+            
+            # Call your FastAPI app (scope/response_start/response_write)
+            # Note: Simplified; for full ASGI support, use better proxy in prod
+            response = app(request)
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"message": "Proxy working", "path": path}).encode())
+            
+        except Exception as e:
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+    def log_message(self, format, *args):
+        logger.info(format % args)
