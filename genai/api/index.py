@@ -8,8 +8,8 @@ import uuid
 import json
 from datetime import datetime
 import time
-import tempfile
-import shutil
+#import tempfile
+#import shutil
 import logging
 from typing import Optional
 from dotenv import load_dotenv
@@ -29,7 +29,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+'''
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY is missing!")
@@ -162,7 +162,7 @@ async def analyze_video(
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
-
+'''
 @app.get("/")
 async def root():
     return {"status": "healthy", "service": "Gym Form Analysis API"}
