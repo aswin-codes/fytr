@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from dotenv import load_dotenv
@@ -8,6 +8,10 @@ from google.genai import types
 from typing import Optional
 import time
 import json
+from datetime import datetime
+import uuid
+import tempfile
+import shutil
 
 # Set up logging to see what's happening
 logging.basicConfig(level=logging.INFO)
@@ -127,3 +131,43 @@ async def analyze_video_with_gemini(video_path: str, exercise_name: Optional[str
                 logger.info("Cleaned up file from Gemini cloud.")
             except:
                 pass
+
+@app.post("/analyze-video")
+async def analyze_video(
+    video: UploadFile = File(...),
+    exercise: Optional[str] = Form(None)
+):
+    temp_path = None
+    try:
+        logger.info(f"Received request: {video.filename}")
+        suffix = os.path.splitext(video.filename)[1] or ".mp4"
+        
+        # Use /tmp for Vercel
+        temp_dir = "/tmp" if os.path.exists("/tmp") else None
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=temp_dir) as tmp:
+            shutil.copyfileobj(video.file, tmp)
+            temp_path = tmp.name
+        
+        logger.info(f"Temporary file saved at: {temp_path}")
+        
+        analysis = await analyze_video_with_gemini(temp_path, exercise)
+        
+        return {
+            "id": str(uuid.uuid4()),
+            "recordedAt": datetime.utcnow().isoformat(),
+            "durationSeconds": 0,
+            "videoUrl": "",
+            "actions": {
+                "canSave": True,
+                "canDelete": True,
+                "isCurrent": True
+            },
+            **analysis
+        }
+
+    except Exception as e:
+        logger.error(f"Endpoint Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
