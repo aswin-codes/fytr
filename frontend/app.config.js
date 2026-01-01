@@ -47,6 +47,14 @@ export default {
           "supportsBackgroundPlayback": true,
           "supportsPictureInPicture": true
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Gymmie to access your camera",
+          "microphonePermission": "Allow Gymmie to access your microphone",
+          "recordAudioAndroid": true
+        }
       ]
     ],
     "experiments": {
@@ -72,8 +80,10 @@ export default {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#F6F000"
       },
+      permissions: ["android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"],
       "package": "com.anonymous.fytr",
-      "googleServicesFile": process.env.GOOGLE_SERVICES_JSON ,
+      "googleServicesFile": process.env.GOOGLE_SERVICES_JSON,
       edgeToEdgeEnabled: true
     },
     "extra": {
