@@ -11,16 +11,14 @@ import { AiAnalysis } from "@/src/types/aiAnalysisTypes";
  */
 export const processVideoAnalysis = async (
     videoUri: string,
-    exercise?: string,
     onProgress?: (progress: number) => void
 ): Promise<AiAnalysis> => {
     try {
         console.log("🎬 Video Controller: Starting video processing...");
         console.log("Video URI:", videoUri);
-        console.log("Exercise:", exercise || "Auto-detect");
 
         // Call the API to analyze video
-        const result = await analyzeVideo(videoUri, exercise, onProgress);
+        const result = await analyzeVideo(videoUri,  onProgress);
 
         console.log("✅ Video Controller: Analysis complete");
         console.log("Result:", JSON.stringify(result, null, 2));

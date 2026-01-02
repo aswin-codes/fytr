@@ -158,7 +158,6 @@ const ProcessingScreen = () => {
             // Call the real API
             const analysis = await processVideoAnalysis(
                 finalVideoUri,
-                exercise,
                 (uploadProg) => {
                     // Map upload progress to 25-50% of total
                     const mappedProgress = 25 + (uploadProg * 25)

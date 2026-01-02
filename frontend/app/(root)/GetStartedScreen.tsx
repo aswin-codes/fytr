@@ -30,10 +30,10 @@ const GetStartedScreen = () => {
       const response = await loginWithGoogle( googleLogin);
       router.dismissAll();
       if (response.user.onboarding_completed) {
-        router.push('/(app)/home');
+        router.replace('/(app)/home');
       } else {
         resetOnboarding();
-        router.push('/(onboarding)/OnboardingScreen1');
+        router.replace('/(onboarding)/OnboardingScreen1');
       }
     } catch (error) {
       console.error("❌ Error in handleCreateAccount:", error);

@@ -4,7 +4,7 @@ import axios from "axios";
 
 // Create a separate axios instance for video processing API
 export const videoApiClient = axios.create({
-    baseURL: 'https://fytr-1vpi.vercel.app',
+    baseURL: 'https://fytr-1vpi.vercel.app', //'https://4g9s20f5-8000.inc1.devtunnels.ms',//
     timeout: 120000, // 2 minutes timeout for video processing
     headers: {
         'Accept': 'application/json',
@@ -65,13 +65,11 @@ videoApiClient.interceptors.response.use(
  */
 export const analyzeVideo = async (
     videoUri: string,
-    exercise?: string,
     onProgress?: (progress: number) => void
 ) => {
     try {
         console.log("🎥 Starting video analysis...");
         console.log("Video URI:", videoUri);
-        console.log("Exercise:", exercise || "Auto-detect");
 
         // Create FormData
         const formData = new FormData();
@@ -84,13 +82,7 @@ export const analyzeVideo = async (
         } as any;
         
         formData.append('video', videoFile);
-        
-        // Add exercise if provided
-        if (exercise) {
-            formData.append('exercise', exercise);
-        } else {
-            formData.append('exercise', ''); // Empty string for auto-detect
-        }
+                
 
         console.log("📦 FormData prepared, uploading...");
 

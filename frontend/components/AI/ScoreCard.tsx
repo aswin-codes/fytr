@@ -109,7 +109,7 @@ const CircularScore: React.FC<CircularScoreProps> = ({
               style={{ fontFamily: fontFamily.semiBold }} 
               className="text-lg text-textSecondary-light dark:text-textSecondary-dark ml-1"
             >
-              /{maxScore}
+              /100
             </Text>
           </View>
           <Text 

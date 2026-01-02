@@ -8,7 +8,8 @@ CREATE TABLE users (
     onboarding_completed BOOLEAN DEFAULT false,
 
     created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    is_paid BOOLEAN DEFAULT false,
 );
 
 CREATE TABLE user_body_metrics (
@@ -82,5 +83,19 @@ CREATE TABLE app_metadata (
   value TEXT NOT NULL,
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE TABLE genai_usage (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    request_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    request_count INT DEFAULT 0,
+    last_request_at TIMESTAMPTZ DEFAULT now(),
+    
+    UNIQUE(user_id, request_date)
+);
+
+CREATE INDEX idx_genai_usage_user_date ON genai_usage(user_id, request_date);
+
+-- ALTER TABLE users ADD COLUMN is_paid BOOLEAN DEFAULT false;
 
 
