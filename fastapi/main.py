@@ -55,21 +55,21 @@ Be critical. Penalize unsafe or inefficient movement patterns.
 IMPORTANT RULES:
 - DO NOT be encouraging by default.
 - If form is unsafe or inefficient, LOWER the score.
-- Average gym form should score between 50–70.
+- Average gym form should score between 50-70.
 - Only near-perfect technique may score above 85.
 - Beginners with visible mistakes MUST score below 70.
 - Unsafe posture MUST be marked as "critical".
 
 SCORING RUBRIC:
-90–100 → Excellent / Elite form (rare)
-75–89  → Good form with minor issues
-60–74  → Average form, needs improvement
-40–59  → Poor form, multiple issues
+90-100 → Excellent / Elite form (rare)
+75-89  → Good form with minor issues
+60-74  → Average form, needs improvement
+40-59  → Poor form, multiple issues
 <40    → Dangerous form, high injury risk
 
 STATUS RULES:
 - score ≥ 80 → "good"
-- score 60–79 → "warning"
+- score 60-79 → "warning"
 - score < 60 → "critical"
 
 ANALYSIS REQUIREMENTS:
@@ -108,6 +108,7 @@ JSON FORMAT:
 
 def parse_gemini_response(response_text: str) -> dict:
     try:
+        logger.info(f"Response {response_text}")
         content = response_text.strip()
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0]
@@ -154,7 +155,7 @@ async def analyze_video_with_gemini(video_path: str, exercise_name: Optional[str
 
         # 3. Generate Analysis
         logger.info("Sending analysis prompt to Gemini...")
-        prompt = ANALYSIS_PROMPT.format(exercise_name=exercise_name or "Detected Exercise")
+        prompt = ANALYSIS_PROMPT;
         
         response = client.models.generate_content(
             model=MODEL_NAME,
@@ -182,8 +183,7 @@ async def analyze_video_with_gemini(video_path: str, exercise_name: Optional[str
 
 @app.post("/analyze-video")
 async def analyze_video(
-    video: UploadFile = File(...),
-    exercise: Optional[str] = Form(None)
+    video: UploadFile = File(...)
 ):
     temp_path = None
     try:
@@ -198,7 +198,7 @@ async def analyze_video(
         
         logger.info(f"Temporary file saved at: {temp_path}")
         
-        analysis = await analyze_video_with_gemini(temp_path, exercise)
+        analysis = await analyze_video_with_gemini(temp_path)
         
         return {
             "id": str(uuid.uuid4()),
