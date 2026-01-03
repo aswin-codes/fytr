@@ -4,7 +4,8 @@ import axios from "axios";
 
 // Create a separate axios instance for video processing API
 export const videoApiClient = axios.create({
-    baseURL: 'https://fytr-1vpi.vercel.app', //'https://4g9s20f5-8000.inc1.devtunnels.ms',//
+    baseURL: 'https://fytr-1vpi.vercel.app',
+   // baseURL: 'https://4g9s20f5-8000.inc1.devtunnels.ms',
     timeout: 120000, // 2 minutes timeout for video processing
     headers: {
         'Accept': 'application/json',

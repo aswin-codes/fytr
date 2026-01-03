@@ -1,19 +1,20 @@
-import { ScrollView, Text, TouchableOpacity, View, Alert, RefreshControl } from 'react-native'
-import React, { useEffect, useState } from 'react'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { fontFamily } from '@/src/theme/fontFamily'
-import { Video } from 'lucide-react-native'
-import { aiFormAnalyses } from '@/src/constants/MockData'
-import AnalysisPreviewCard from '@/components/AI/AnalysisPreviewCard'
-import { useRouter } from 'expo-router'
-import QuotaDisplay from '@/components/AI/QuotaDisplay'
-import { fetchQuotaStatus, refreshQuotaIfStale } from '@/src/controllers/quotaController'
-import { useQuotaStore } from '@/src/store/quotaStore'
+import { ScrollView, Text, TouchableOpacity, View, Alert, RefreshControl } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { fontFamily } from '@/src/theme/fontFamily';
+import { Lock, Sparkle, Video } from 'lucide-react-native';
+import { aiFormAnalyses } from '@/src/constants/MockData';
+import AnalysisPreviewCard from '@/components/AI/AnalysisPreviewCard';
+import { useRouter } from 'expo-router';
+import QuotaDisplay from '@/components/AI/QuotaDisplay';
+import { fetchQuotaStatus, refreshQuotaIfStale } from '@/src/controllers/quotaController';
+import { useQuotaStore } from '@/src/store/quotaStore';
 
 const FormScreen = () => {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
-  const { canAnalyze, getQuotaMessage } = useQuotaStore();
+  const { limit, used, remaining, isPaid, isLoading, getQuotaMessage, canAnalyze } =
+    useQuotaStore();
 
   // Fetch quota on mount
   useEffect(() => {
@@ -43,7 +44,7 @@ const FormScreen = () => {
     try {
       // Refresh quota if stale
       await refreshQuotaIfStale();
-      
+
       // Check if user can analyze
       if (!canAnalyze()) {
         Alert.alert(
@@ -74,60 +75,85 @@ const FormScreen = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background-light dark:bg-background-dark px-6 py-3">
-      <ScrollView 
+    <SafeAreaView className="flex-1 bg-background-light px-6 py-3 dark:bg-background-dark">
+      <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        <Text style={{ fontFamily: fontFamily.bold }} className="text-primary-glow dark:text-primary text-sm">
-          AI FORM ANALYSIS
-        </Text>
-        <Text style={{ fontFamily: fontFamily.bold }} className="text-textPrimary-light dark:text-textPrimary-dark text-3xl mt-2">
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+        <View className="flex-row gap-2 item">
+          <Text
+            style={{ fontFamily: fontFamily.bold }}
+            className="text-sm text-primary-glow dark:text-primary">
+            AI FORM ANALYSIS
+          </Text>
+          { isPaid === true && isLoading === false && (
+            <View className="flex-row items-center gap-1 px-2 py-1  bg-amber-500/10 rounded-full border border-amber-500">
+             
+              <Sparkle size={10} color={'#e17100'} /> 
+              <Text style={{ fontFamily: fontFamily.semiBold }} className="text-amber-500 text-xs">Premium</Text>
+            </View>
+          )}
+        </View>
+        <Text
+          style={{ fontFamily: fontFamily.bold }}
+          className="mt-2 text-3xl text-textPrimary-light dark:text-textPrimary-dark">
           Train Smarter.
         </Text>
-        <Text style={{ fontFamily: fontFamily.bold }} className="text-textSecondary-light dark:text-textSecondary-dark text-3xl">
+        <Text
+          style={{ fontFamily: fontFamily.bold }}
+          className="text-3xl text-textSecondary-light dark:text-textSecondary-dark">
           Fix your form.
         </Text>
 
         {/* Quota Display */}
         <QuotaDisplay onUpgradePress={handleUpgrade} />
 
-        <View className="h-72 mt-5 flex items-center justify-center p-5">
+        <View className="mt-5 flex h-72 items-center justify-center p-5">
           <TouchableOpacity onPress={navigateToCameraScreen}>
-            <View className={`rounded-full p-5 ${
-              canAnalyze() 
-                ? 'bg-primary-glow dark:bg-primary' 
-                : 'bg-gray-400 dark:bg-gray-600'
-            }`}>
-              <Video size={30} color="black" />
+            <View
+              className={`rounded-full p-5 ${
+                canAnalyze() ? 'bg-primary-glow dark:bg-primary' : 'bg-gray-200 dark:bg-gray-600'
+              }`}>
+             {
+               canAnalyze() ? <Video size={30} color="black" /> : <Lock size={30} color={"black"}/>
+             }
             </View>
           </TouchableOpacity>
-          <Text style={{ fontFamily: fontFamily.bold }} className='mt-2 text-lg text-textPrimary-light dark:text-textPrimary-dark'>
-            Analyze your form
+          <Text
+            style={{ fontFamily: fontFamily.bold }}
+            className="mt-2 text-lg text-textPrimary-light dark:text-textPrimary-dark">
+            {
+              canAnalyze() ? 'Analyze your form' : 'Analysis Limit Reached'
+            }
           </Text>
-          <View className='bg-card-light dark:bg-card-dark rounded-full px-2 py-1 mt-2'>
-            <Text style={{ fontFamily: fontFamily.medium }} className='text-textSecondary-light dark:text-textSecondary-dark text-sm'>
-              {canAnalyze() ? 'Tap to record' : 'Limit reached'}
+          <View className="mt-2 rounded-full bg-card-light px-2 py-1 dark:bg-card-dark">
+            <Text
+              style={{ fontFamily: fontFamily.medium }}
+              className="text-sm text-textSecondary-light dark:text-textSecondary-dark">
+              {canAnalyze() ? 'Tap to record' : 'Refreshes tomorrow'}
             </Text>
           </View>
         </View>
 
-        <View className='flex-row w-full justify-between items-center my-5'>
-          <Text style={{ fontFamily: fontFamily.bold }} className="text-textPrimary-light dark:text-textPrimary-dark text-xl">
+        <View className="my-5 w-full flex-row items-center justify-between">
+          <Text
+            style={{ fontFamily: fontFamily.bold }}
+            className="text-xl text-textPrimary-light dark:text-textPrimary-dark">
             Previous Analyses
           </Text>
           <TouchableOpacity onPress={navigateToAllAnalysesScreen}>
-            <Text style={{ fontFamily: fontFamily.regular }} className="text-textSecondary-light dark:text-textSecondary-dark text-xs">
+            <Text
+              style={{ fontFamily: fontFamily.regular }}
+              className="text-xs text-textSecondary-light dark:text-textSecondary-dark">
               View all
             </Text>
           </TouchableOpacity>
         </View>
 
         {aiFormAnalyses.length === 0 ? (
-          <View className='h-48 justify-center items-center'>
-            <Text style={{ fontFamily: fontFamily.regular }} className="text-textSecondary-light dark:text-textSecondary-dark text-base">
+          <View className="h-48 items-center justify-center">
+            <Text
+              style={{ fontFamily: fontFamily.regular }}
+              className="text-base text-textSecondary-light dark:text-textSecondary-dark">
               No analysis found!
             </Text>
           </View>
@@ -140,7 +166,7 @@ const FormScreen = () => {
         )}
       </ScrollView>
     </SafeAreaView>
-  )
-}
+  );
+};
 
-export default FormScreen
+export default FormScreen;

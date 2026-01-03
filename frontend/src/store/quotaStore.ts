@@ -61,6 +61,7 @@ export const useQuotaStore = create<QuotaStore>()(
       canAnalyze: () => {
         const { isPaid, remaining } = get();
         return isPaid || remaining > 0;
+       
       },
 
       isUnlimited: () => {
