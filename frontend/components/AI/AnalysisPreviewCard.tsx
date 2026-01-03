@@ -1,16 +1,40 @@
-import { StyleSheet, Text, View, Image, ActivityIndicator, TouchableOpacity } from 'react-native'
+import { StyleSheet, Text, View, Image, ActivityIndicator, TouchableOpacity, Alert } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { AiAnalysis } from '@/src/types/aiAnalysisTypes'
 import { generateThumbnail } from '@/src/utils/extractThumbnail';
 import { CircleAlert, CircleCheck, Play, Trash2, TriangleAlert } from 'lucide-react-native';
 import { fontFamily } from '@/src/theme/fontFamily';
-import { getMonth } from '@/src/constants/Date';
 import { useRouter } from 'expo-router';
+import { deleteAnalysis } from '@/src/controllers/analysisController';
 
 const AnalysisPreviewCard = ({ analysis }: { analysis: AiAnalysis }) => {
     const [image, setImage] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+    
+    const handleDeletePress = async (e: any) => {
+        e.stopPropagation();
+        
+        Alert.alert(
+            'Delete Analysis',
+            'Are you sure you want to delete this analysis?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await deleteAnalysis(analysis.id);
+                            Alert.alert('Success', 'Analysis deleted successfully');
+                        } catch (error) {
+                            Alert.alert('Error', 'Failed to delete analysis');
+                        }
+                    }
+                }
+            ]
+        );
+    }
 
     const getThumbnail = async () => {
         try {
@@ -82,12 +106,7 @@ const AnalysisPreviewCard = ({ analysis }: { analysis: AiAnalysis }) => {
         });
     }
 
-    const handleDeletePress = (e: any) => {
-        e.stopPropagation(); // Prevent card press
-        // Handle delete action
-        console.log('Delete analysis:', analysis.id);
-        // Add your delete logic here
-    }
+    
 
     useEffect(() => {
         getThumbnail();

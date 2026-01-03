@@ -3,38 +3,39 @@ import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fontFamily } from '@/src/theme/fontFamily';
 import { Lock, Sparkle, Video } from 'lucide-react-native';
-import { aiFormAnalyses } from '@/src/constants/MockData';
 import AnalysisPreviewCard from '@/components/AI/AnalysisPreviewCard';
 import { useRouter } from 'expo-router';
 import QuotaDisplay from '@/components/AI/QuotaDisplay';
 import { fetchQuotaStatus, refreshQuotaIfStale } from '@/src/controllers/quotaController';
 import { useQuotaStore } from '@/src/store/quotaStore';
+import { fetchAllAnalyses, refreshAnalysesIfStale } from '@/src/controllers/analysisController';
+import { useAnalysisStore, useRecentAnalyses } from '@/src/store/analysisStore';
 
 const FormScreen = () => {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
-  const { limit, used, remaining, isPaid, isLoading, getQuotaMessage, canAnalyze } =
-    useQuotaStore();
+  const { limit, used, remaining, isPaid, isLoading, canAnalyze } = useQuotaStore();
+  const { isLoading: isLoadingAnalyses } = useAnalysisStore();
+  const recentAnalyses = useRecentAnalyses(3);
 
-  // Fetch quota on mount
   useEffect(() => {
-    loadQuotaData();
+    loadInitialData();
   }, []);
 
-  const loadQuotaData = async () => {
+  const loadInitialData = async () => {
     try {
-      await fetchQuotaStatus();
+      await Promise.all([fetchQuotaStatus(), fetchAllAnalyses()]);
     } catch (error) {
-      console.error('Failed to load quota:', error);
+      console.error('Failed to load initial data:', error);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await fetchQuotaStatus();
+      await Promise.all([fetchQuotaStatus(), fetchAllAnalyses()]);
     } catch (error) {
-      console.error('Failed to refresh quota:', error);
+      console.error('Failed to refresh:', error);
     } finally {
       setRefreshing(false);
     }
@@ -42,10 +43,8 @@ const FormScreen = () => {
 
   const navigateToCameraScreen = async () => {
     try {
-      // Refresh quota if stale
       await refreshQuotaIfStale();
 
-      // Check if user can analyze
       if (!canAnalyze()) {
         Alert.alert(
           'Daily Limit Reached',
@@ -70,7 +69,6 @@ const FormScreen = () => {
   };
 
   const handleUpgrade = () => {
-    // TODO: Navigate to upgrade/payment screen
     Alert.alert('Coming Soon', 'Pro plan will be available soon!');
   };
 
@@ -79,17 +77,18 @@ const FormScreen = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-        <View className="flex-row gap-2 item">
+        <View className="flex-row gap-2">
           <Text
             style={{ fontFamily: fontFamily.bold }}
             className="text-sm text-primary-glow dark:text-primary">
             AI FORM ANALYSIS
           </Text>
-          { isPaid === true && isLoading === false && (
-            <View className="flex-row items-center gap-1 px-2 py-1  bg-amber-500/10 rounded-full border border-amber-500">
-             
-              <Sparkle size={10} color={'#e17100'} /> 
-              <Text style={{ fontFamily: fontFamily.semiBold }} className="text-amber-500 text-xs">Premium</Text>
+          {isPaid === true && isLoading === false && (
+            <View className="flex-row items-center gap-1 rounded-full border border-amber-500 bg-amber-500/10 px-2 py-1">
+              <Sparkle size={10} color={'#e17100'} />
+              <Text style={{ fontFamily: fontFamily.semiBold }} className="text-xs text-amber-500">
+                Premium
+              </Text>
             </View>
           )}
         </View>
@@ -104,7 +103,6 @@ const FormScreen = () => {
           Fix your form.
         </Text>
 
-        {/* Quota Display */}
         <QuotaDisplay onUpgradePress={handleUpgrade} />
 
         <View className="mt-5 flex h-72 items-center justify-center p-5">
@@ -113,17 +111,13 @@ const FormScreen = () => {
               className={`rounded-full p-5 ${
                 canAnalyze() ? 'bg-primary-glow dark:bg-primary' : 'bg-gray-200 dark:bg-gray-600'
               }`}>
-             {
-               canAnalyze() ? <Video size={30} color="black" /> : <Lock size={30} color={"black"}/>
-             }
+              {canAnalyze() ? <Video size={30} color="black" /> : <Lock size={30} color={'black'} />}
             </View>
           </TouchableOpacity>
           <Text
             style={{ fontFamily: fontFamily.bold }}
             className="mt-2 text-lg text-textPrimary-light dark:text-textPrimary-dark">
-            {
-              canAnalyze() ? 'Analyze your form' : 'Analysis Limit Reached'
-            }
+            {canAnalyze() ? 'Analyze your form' : 'Analysis Limit Reached'}
           </Text>
           <View className="mt-2 rounded-full bg-card-light px-2 py-1 dark:bg-card-dark">
             <Text
@@ -149,7 +143,15 @@ const FormScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {aiFormAnalyses.length === 0 ? (
+        {isLoadingAnalyses ? (
+          <View className="h-48 items-center justify-center">
+            <Text
+              style={{ fontFamily: fontFamily.regular }}
+              className="text-base text-textSecondary-light dark:text-textSecondary-dark">
+              Loading analyses...
+            </Text>
+          </View>
+        ) : recentAnalyses.length === 0 ? (
           <View className="h-48 items-center justify-center">
             <Text
               style={{ fontFamily: fontFamily.regular }}
@@ -159,7 +161,7 @@ const FormScreen = () => {
           </View>
         ) : (
           <View>
-            {aiFormAnalyses.slice(0, 3).map((analysis) => (
+            {recentAnalyses.map((analysis) => (
               <AnalysisPreviewCard key={analysis.id} analysis={analysis} />
             ))}
           </View>

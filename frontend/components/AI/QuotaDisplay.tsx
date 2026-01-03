@@ -32,14 +32,14 @@ const QuotaDisplay: React.FC<QuotaDisplayProps> = ({ onUpgradePress }) => {
       }
       
       {
-        !isUnlimited && (remaining !== 0 ) && (<View className="flex-row gap-2 items-center">
+        !isUnlimited && (remaining !== 0 ) && remaining && (<View className="flex-row gap-2 items-center">
           <Zap color={'gray'} size={16} />
           <Text style={{ fontFamily: fontFamily.medium }} className="text-sm text-textSecondary-light dark:text-textSecondary-dark">{remaining} requests remaining today</Text>
         </View>) 
       }
       
       {
-        !isUnlimited && remaining === 0 && (<View className="flex-row gap-2 items-center">
+        !isUnlimited && !remaining && (<View className="flex-row gap-2 items-center">
           <Lock color={'gray'} size={16} />
           <Text style={{ fontFamily: fontFamily.medium }} className="text-sm text-textSecondary-light dark:text-textSecondary-dark">No requests remaining today</Text>
         </View>) 

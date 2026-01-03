@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View, ScrollView, Pressable } from 'react-native'
-import React, { useMemo } from 'react'
+import { StyleSheet, Text, View, ScrollView, Pressable, Alert } from 'react-native'
+import React, { useMemo, useState, useEffect } from 'react'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import { useEvent } from 'expo'
 import CircularScore from '@/components/AI/ScoreCard'
@@ -11,10 +11,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { AiAnalysis } from '@/src/types/aiAnalysisTypes'
 import DetectedExerciseCard from '@/components/AI/DetectedExerciseCard'
 import { fetchQuotaStatus } from '@/src/controllers/quotaController';
-import { useEffect } from 'react'
+
+import { saveAnalysis, deleteAnalysis } from '@/src/controllers/analysisController';
+import { uploadVideoToCloudinary } from '@/src/utils/cloudinaryUpload';
+import UploadProgress from '@/components/AI/UploadProgress';
+
+
 const ResultsScreen = () => {
     const { analysis } = useLocalSearchParams<{ analysis: string }>();
     const router = useRouter();
+    
+    const [uploadProgress, setUploadProgress] = useState(0);
+       const [isUploading, setIsUploading] = useState(false);
+       const [uploadMessage, setUploadMessage] = useState('Preparing...');
     
     useEffect(()=>{
       loadQuotaData();
@@ -72,26 +81,133 @@ const ResultsScreen = () => {
     });
     const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
 
-    const handleSave = () => {
-        // Handle save logic
-        console.log('Saving analysis:', result.id);
-        // Add your save logic here
-        router.back();
-    };
+    const handleSave = async () => {
+          try {
+              if (!result) return;
+  
+              setIsUploading(true);
+              setUploadMessage('Getting video duration...');
+  
+              // 1. Get video duration
+              let videoDuration = result.durationSeconds;
+             
+  
+              // 2. Upload video to Cloudinary
+              setUploadMessage('Uploading video...');
+              let cloudinaryUrl = result.videoUrl;
+              
+              if (result.videoUrl.startsWith('file://')) {
+                  console.log('📤 Starting upload to Cloudinary...');
+                  
+                  const uploadResult = await uploadVideoToCloudinary(
+                      result.videoUrl,
+                      (progress) => {
+                          setUploadProgress(progress.percentage);
+                      }
+                  );
+                  
+                  cloudinaryUrl = uploadResult.url;
+                  
+                  // Use Cloudinary's duration if available (more accurate)
+                  if (uploadResult.duration > 0) {
+                      videoDuration = uploadResult.duration;
+                  }
+                  
+                  console.log('✅ Video uploaded to Cloudinary:', cloudinaryUrl);
+                  console.log('⏱️  Duration from Cloudinary:', uploadResult.duration, 'seconds');
+              }
+  
+              // 3. Save to backend with proper field names
+              setUploadMessage('Saving analysis...');
+              setUploadProgress(100);
+              
+              console.log('💾 Saving to backend...');
+              const response = await saveAnalysis({
+                  exercise: result.exercise,
+                  duration_seconds: videoDuration, // Use actual duration
+                  video_url: cloudinaryUrl, // Use Cloudinary URL
+                  score: result.score,
+                  verdict: result.verdict,
+                  status: result.status,
+                  positives: result.positives,
+                  improvements: result.improvements,
+                  ai_coach_tip: result.aiCoachTip,
+                  recorded_at: result.recordedAt || new Date().toISOString(),
+              });
+  
+              console.log('✅ Backend response:', response);
+  
+            
+  
+              setIsUploading(false);
+              Alert.alert('Success', 'Analysis saved successfully!', [
+                  {
+                      text: 'OK',
+                      onPress: () => router.back(),
+                  },
+              ]);
+          } catch (error) {
+              console.error('❌ Error saving analysis:', error);
+              setIsUploading(false);
+              Alert.alert('Error', 'Failed to save analysis. Please try again.');
+          }
+      };
 
     const handleDiscard = () => {
-        // Handle discard logic
-        console.log('Discarding analysis:', result.id);
-        // Add your discard logic here
-        router.back();
-    };
+            Alert.alert(
+                'Discard Analysis',
+                'Are you sure you want to discard this analysis? This cannot be undone.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Discard',
+                        style: 'destructive',
+                        onPress: () => router.back(),
+                    },
+                ]
+            );
+        };
 
-    const handleDelete = () => {
-        // Handle delete logic
-        console.log('Deleting analysis:', result.id);
-        // Add your delete logic here
-        router.back();
-    };
+    const handleDelete = async () => {
+            Alert.alert(
+                'Delete Analysis',
+                'Are you sure you want to delete this analysis?',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: async () => {
+                            try {
+                                await deleteAnalysis(result.id);
+                                Alert.alert('Success', 'Analysis deleted successfully', [
+                                    {
+                                        text: 'OK',
+                                        onPress: () => router.back(),
+                                    },
+                                ]);
+                            } catch (error) {
+                                Alert.alert('Error', 'Failed to delete analysis');
+                            }
+                        },
+                    },
+                ]
+            );
+        };
+    
+    // Show upload progress
+        if (isUploading) {
+            return (
+                <View className="flex-1 items-center justify-center bg-background-light p-6 dark:bg-background-dark">
+                    <UploadProgress progress={uploadProgress} message={uploadMessage} />
+                    <Text
+                        style={{ fontFamily: fontFamily.regular }}
+                        className="mt-4 text-center text-sm text-textSecondary-light dark:text-textSecondary-dark">
+                        Please don't close the app
+                    </Text>
+                </View>
+            );
+        }
 
     return (
         <View className="flex-1 bg-background-light dark:bg-background-dark ">

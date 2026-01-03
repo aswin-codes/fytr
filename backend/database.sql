@@ -98,4 +98,38 @@ CREATE INDEX idx_genai_usage_user_date ON genai_usage(user_id, request_date);
 
 -- ALTER TABLE users ADD COLUMN is_paid BOOLEAN DEFAULT false;
 
+-- Create analysis table
+CREATE TABLE ai_form_analyses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- Exercise info
+    exercise TEXT NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    duration_seconds INT NOT NULL,
+    video_url TEXT,
+    
+    -- Analysis results
+    score INT NOT NULL CHECK (score >= 0 AND score <= 100),
+    verdict TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('good', 'warning', 'critical')),
+    
+    -- Feedback arrays
+    positives TEXT[] NOT NULL DEFAULT '{}',
+    improvements TEXT[] NOT NULL DEFAULT '{}',
+    ai_coach_tip TEXT,
+    
+    -- Metadata
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    
+    CONSTRAINT valid_duration CHECK (duration_seconds > 0)
+);
+
+-- Create index for faster user queries
+CREATE INDEX idx_ai_form_analyses_user_id ON ai_form_analyses(user_id);
+CREATE INDEX idx_ai_form_analyses_recorded_at ON ai_form_analyses(recorded_at DESC);
+
+-- Create composite index for user + date queries
+CREATE INDEX idx_ai_form_analyses_user_recorded ON ai_form_analyses(user_id, recorded_at DESC);
 

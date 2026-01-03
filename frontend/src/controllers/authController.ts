@@ -1,7 +1,8 @@
 import { registerUser, loginUser, loginUserWithGoogle } from "@/src/api/userClient";
 import { userStorage } from "@/src/store/userStorage";
 import { getUserOnboardingData } from "@/src/controllers/onboardingController";
-import { fetchQuotaStatus } from "@/src/controllers/quotaController"; // ADD THIS
+import { fetchQuotaStatus } from "@/src/controllers/quotaController"; // ADD THIS\import { fetchQuotaStatus } from "@/src/controllers/quotaController";
+import { fetchAllAnalyses } from "@/src/controllers/analysisController"; 
 
 export const registerEmailAndPassword = async (
     email: string,
@@ -29,6 +30,14 @@ export const registerEmailAndPassword = async (
             console.log("✅ Step 4 Complete: Quota status fetched");
         } catch (error) {
             console.error("⚠️ Failed to fetch quota:", error);
+        }
+        
+        console.log("🔵 Step 6: Fetching analyses...");
+        try {
+            await fetchAllAnalyses();
+            console.log("✅ Step 6 Complete: Analyses fetched");
+        } catch (error) {
+            console.error("⚠️ Failed to fetch analyses:", error);
         }
         
         return response;
@@ -72,6 +81,14 @@ export const loginUserWithEmailAndPassword = async (email: string, password: str
             console.error("⚠️ Failed to fetch quota:", error);
         }
         
+        console.log("🔵 Step 6: Fetching analyses...");
+        try {
+            await fetchAllAnalyses();
+            console.log("✅ Step 6 Complete: Analyses fetched");
+        } catch (error) {
+            console.error("⚠️ Failed to fetch analyses:", error);
+        }
+        
         return response;
     } catch (error) {
         console.error("Error in loginEmailAndPassword:", error);
@@ -111,6 +128,14 @@ export const loginWithGoogle = async (googleLogin: () => Promise<string | null>)
             console.log("✅ Step 5 Complete: Quota status fetched");
         } catch (error) {
             console.error("⚠️ Failed to fetch quota:", error);
+        }
+        
+        console.log("🔵 Step 6: Fetching analyses...");
+        try {
+            await fetchAllAnalyses();
+            console.log("✅ Step 6 Complete: Analyses fetched");
+        } catch (error) {
+            console.error("⚠️ Failed to fetch analyses:", error);
         }
         
         return response;
