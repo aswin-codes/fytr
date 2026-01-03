@@ -1,7 +1,7 @@
 // src/controllers/videoController.ts
 import { analyzeVideo } from "@/src/api/videoClient";
 import { AiAnalysis } from "@/src/types/aiAnalysisTypes";
-
+import * as FileSystem from 'expo-file-system';
 /**
  * Process and analyze video file
  * @param videoUri - Local file URI of the compressed video
@@ -72,9 +72,8 @@ export const validateVideoFile = async (
 ): Promise<{ valid: boolean; error?: string; sizeMB?: number }> => {
     try {
         // Import FileSystem dynamically to avoid import errors
-        const FileSystem = require('expo-file-system').default;
         
-        const fileInfo = await FileSystem.getInfoAsync(videoUri);
+        const fileInfo = new FileSystem.File(videoUri);
         
         if (!fileInfo.exists) {
             return {

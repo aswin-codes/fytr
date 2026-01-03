@@ -24,7 +24,7 @@ const CircularScore: React.FC<CircularScoreProps> = ({
 
   // Get color based on score
   const getColors = () => {
-    if (score >= 80) {
+    if (score >= 75) {
       return {
         stroke: '#F6F000', // primary yellow
         background: '#FFF85A20', // primary-soft with opacity
@@ -32,7 +32,7 @@ const CircularScore: React.FC<CircularScoreProps> = ({
         label: "Good Form"
       };
     }
-    if (score >= 60) {
+    if (score >= 50) {
       return {
         stroke: '#F59E0B', // warning orange
         background: '#F59E0B20',

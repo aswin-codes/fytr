@@ -54,7 +54,7 @@ const ProcessingScreen = () => {
         // Log initial video file info
         const checkFileInfo = async () => {
             try {
-                const fileInfo = await FileSystem.getInfoAsync(videoURL)
+                const fileInfo = new FileSystem.File(videoURL)
                 if (fileInfo.exists) {
                     console.log('Original video size:', (fileInfo.size / (1024 * 1024)).toFixed(2), 'MB')
                 }
@@ -93,7 +93,7 @@ const ProcessingScreen = () => {
                 )
 
                 // Check compressed file size
-                const compressedInfo = await FileSystem.getInfoAsync(compressedUri)
+                const compressedInfo = new FileSystem.File(compressedUri)
                 if (compressedInfo.exists) {
                     const sizeInMB = compressedInfo.size / (1024 * 1024)
                     console.log('Compressed video size:', sizeInMB.toFixed(2), 'MB')

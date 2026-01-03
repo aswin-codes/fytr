@@ -10,10 +10,23 @@ import { fontFamily } from '@/src/theme/fontFamily'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { AiAnalysis } from '@/src/types/aiAnalysisTypes'
 import DetectedExerciseCard from '@/components/AI/DetectedExerciseCard'
-
+import { fetchQuotaStatus } from '@/src/controllers/quotaController';
+import { useEffect } from 'react'
 const ResultsScreen = () => {
     const { analysis } = useLocalSearchParams<{ analysis: string }>();
     const router = useRouter();
+    
+    useEffect(()=>{
+      loadQuotaData();
+    },[])
+    
+    const loadQuotaData = async () => {
+      try {
+        await fetchQuotaStatus();
+      } catch (error) {
+        console.error('Failed to load quota:', error);
+      }
+    }
     
     // Parse the analysis object from JSON string
     const result: AiAnalysis | null = useMemo(() => {
