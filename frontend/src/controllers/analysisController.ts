@@ -1,21 +1,33 @@
+// src/controllers/analysisController.ts
 import {
-  getAllAnalyses,
+  getAllAnalyses as getAllAnalysesAPI,
   createAnalysis as createAnalysisAPI,
   deleteAnalysis as deleteAnalysisAPI,
 } from '@/src/api/analysisClient';
 import { useAnalysisStore } from '@/src/store/analysisStore';
 import { CreateAnalysisPayload } from '@/src/types/aiAnalysisTypes';
 
-export const fetchAllAnalyses = async () => {
+export const fetchAllAnalyses = async (page: number = 1, limit: number = 20) => {
   try {
-    console.log('🔵 Fetching all analyses...');
-    useAnalysisStore.getState().setLoading(true);
+    console.log(`🔵 Fetching analyses - Page ${page}...`);
+    
+    if (page === 1) {
+      useAnalysisStore.getState().setLoading(true);
+    } else {
+      useAnalysisStore.getState().setLoadingMore(true);
+    }
 
-    const response = await getAllAnalyses();
+    const response = await getAllAnalysesAPI(page, limit);
     console.log('✅ Analyses fetched:', response);
 
     if (response.success && response.analyses) {
-      useAnalysisStore.getState().setAnalyses(response.analyses);
+      if (page === 1) {
+        // First page - replace all
+        useAnalysisStore.getState().setAnalyses(response.analyses, response.pagination);
+      } else {
+        // Additional pages - append
+        useAnalysisStore.getState().appendAnalyses(response.analyses, response.pagination);
+      }
     }
 
     return response;
@@ -24,29 +36,34 @@ export const fetchAllAnalyses = async () => {
     throw error;
   } finally {
     useAnalysisStore.getState().setLoading(false);
+    useAnalysisStore.getState().setLoadingMore(false);
   }
+};
+
+export const loadMoreAnalyses = async () => {
+  const { currentPage, hasMore, isLoadingMore } = useAnalysisStore.getState();
+  
+  if (!hasMore || isLoadingMore) {
+    console.log('⏭️  No more analyses to load or already loading');
+    return;
+  }
+  
+  console.log(`🔵 Loading more analyses - Page ${currentPage + 1}...`);
+  await fetchAllAnalyses(currentPage + 1, 20);
 };
 
 export const saveAnalysis = async (payload: CreateAnalysisPayload) => {
   try {
-    console.log('🔵 ===== SAVING ANALYSIS =====');
-    console.log('📤 Payload being sent to backend:');
-    console.log(JSON.stringify(payload, null, 2));
+    console.log('🔵 Saving analysis to backend...');
+    console.log('📤 Payload:', payload);
 
     const response = await createAnalysisAPI(payload);
-    
-    console.log('📥 Response from backend:');
-    console.log(JSON.stringify(response, null, 2));
+    console.log('✅ Backend response:', response);
 
     if (response.success && response.analysis) {
-      console.log('✅ Analysis ID from backend:', response.analysis.id);
-      console.log('✅ Video URL in response:', response.analysis.videoUrl);
-      console.log('✅ Duration in response:', response.analysis.durationSeconds);
-      
       useAnalysisStore.getState().addAnalysis(response.analysis);
+      console.log('✅ Analysis added to store with ID:', response.analysis.id);
     }
-    
-    console.log('🔵 ===== SAVE COMPLETE =====');
 
     return response;
   } catch (error) {
@@ -63,7 +80,6 @@ export const deleteAnalysis = async (analysisId: string) => {
     console.log('✅ Analysis deleted:', response);
 
     if (response.success) {
-      // Remove from local store
       useAnalysisStore.getState().removeAnalysis(analysisId);
     }
 
@@ -80,6 +96,6 @@ export const refreshAnalysesIfStale = async () => {
 
   if (!lastFetched || Date.now() - lastFetched > FIVE_MINUTES) {
     console.log('🔄 Analysis data is stale, refreshing...');
-    await fetchAllAnalyses();
+    await fetchAllAnalyses(1, 20);
   }
 };

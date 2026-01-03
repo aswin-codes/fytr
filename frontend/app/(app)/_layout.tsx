@@ -25,7 +25,7 @@ export default function TabsLayout() {
 
   const loadInitialData = async () => {
     try {
-      await Promise.all([fetchQuotaStatus(), fetchAllAnalyses()]);
+      await Promise.all([fetchQuotaStatus(), fetchAllAnalyses(1,20)]);
     } catch (error) {
       console.error('Failed to load initial data:', error);
     }

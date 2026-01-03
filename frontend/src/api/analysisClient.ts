@@ -1,10 +1,11 @@
+// src/api/analysisClient.ts
 import { apiClient } from './client';
 import { CreateAnalysisPayload } from '../types/aiAnalysisTypes';
 
-export const getAllAnalyses = async () => {
+export const getAllAnalyses = async (page: number = 1, limit: number = 20) => {
   try {
-    console.log('📡 Fetching all analyses...');
-    const res = await apiClient.get('/analysis');
+    console.log(`📡 Fetching analyses - Page ${page}, Limit ${limit}`);
+    const res = await apiClient.get(`/analysis?page=${page}&limit=${limit}`);
     console.log('✅ Analyses fetched:', res.data);
     return res.data;
   } catch (error) {
