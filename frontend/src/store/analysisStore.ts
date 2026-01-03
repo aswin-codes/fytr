@@ -72,6 +72,10 @@ export const useAnalysisStore = create<AnalysisStore>()(
       getRecentAnalyses: (count = 3) => {
         return get().analyses.slice(0, count);
       },
+      
+      getAllAnalyses: () => {
+        return get().analyses;
+      },
 
       getTotalAnalyses: () => {
         return get().analyses.length;

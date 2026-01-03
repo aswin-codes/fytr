@@ -9,12 +9,27 @@ import {
   Dumbbell,
 } from 'lucide-react-native';
 import ProtectedRoute from '@/src/auth/protectedRoutes';
+import { useEffect } from 'react';
+import { fetchQuotaStatus } from '@/src/controllers/quotaController';
+import { fetchAllAnalyses } from '@/src/controllers/analysisController';
 
 export default function TabsLayout() {
   const { colorScheme } = useColorScheme();
 
   const activeColor = colorScheme === 'dark' ? '#F6F000' : '#E6E000';
   const inactiveColor = '#9CA3AF';
+  
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    try {
+      await Promise.all([fetchQuotaStatus(), fetchAllAnalyses()]);
+    } catch (error) {
+      console.error('Failed to load initial data:', error);
+    }
+  };
 
   return (
     <ProtectedRoute>

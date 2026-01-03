@@ -18,17 +18,7 @@ const FormScreen = () => {
   const { isLoading: isLoadingAnalyses } = useAnalysisStore();
   const recentAnalyses = useRecentAnalyses(3);
 
-  useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  const loadInitialData = async () => {
-    try {
-      await Promise.all([fetchQuotaStatus(), fetchAllAnalyses()]);
-    } catch (error) {
-      console.error('Failed to load initial data:', error);
-    }
-  };
+ 
 
   const onRefresh = async () => {
     setRefreshing(true);
