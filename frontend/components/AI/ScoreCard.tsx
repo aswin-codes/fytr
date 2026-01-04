@@ -19,7 +19,10 @@ const CircularScore: React.FC<CircularScoreProps> = ({
 }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const progress = (score / maxScore) * circumference;
+  // Prevent complete overlap at 100%
+  const progress = score >= maxScore 
+    ? circumference - 0.1 
+    : (score / maxScore) * circumference;
   const center = size / 2;
 
   // Get color based on score
@@ -106,8 +109,8 @@ const CircularScore: React.FC<CircularScoreProps> = ({
               {score}
             </Text>
             <Text 
-              style={{ fontFamily: fontFamily.semiBold }} 
-              className="text-lg text-textSecondary-light dark:text-textSecondary-dark ml-1"
+              //style={{ fontFamily: fontFamily.semiBold }} 
+              className="text-lg font-semibold text-textSecondary-light dark:text-textSecondary-dark ml-1"
             >
               /100
             </Text>
@@ -116,7 +119,7 @@ const CircularScore: React.FC<CircularScoreProps> = ({
             style={{ fontFamily: fontFamily.bold, letterSpacing: 0.5 }} 
             className="text-[11px] text-textSecondary-light dark:text-textSecondary-dark mt-1"
           >
-            {getColors().label}
+            {colors.label}
           </Text>
         </View>
       </View>
