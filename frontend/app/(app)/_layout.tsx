@@ -47,7 +47,7 @@ export default function TabsLayout() {
     >
       {/* HOME */}
       <Tabs.Screen
-        name="home/index"
+        name="home"
         options={{
           tabBarIcon: ({ focused }) => (
             <Home color={focused ? activeColor : inactiveColor} />

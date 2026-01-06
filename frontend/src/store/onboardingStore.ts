@@ -56,6 +56,7 @@ interface OnboardingStore extends OnboardingData {
   calculateAndSetMacros: () => void;
 }
 
+
 const initialState: OnboardingData = {
   gender: null,
   age: null,
