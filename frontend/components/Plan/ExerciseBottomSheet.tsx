@@ -82,13 +82,14 @@ export default function ExerciseBottomSheet({
     },
   });
 
+  // Initialize on open - pre-select existing exercises ONCE
   useEffect(() => {
     if (visible) {
       loadEquipmentOptions();
       loadExercises();
       
-      // Pre-select already added exercises for this muscle group
-      if (dayWorkout) {
+      // Pre-select already added exercises for this muscle group ONLY on initial open
+      if (dayWorkout && selectedExercises.size === 0) {
         const existingExercises = dayWorkout.exercises
           .filter(ex => ex.muscleGroup?.toLowerCase() === muscleGroup.toLowerCase())
           .map(ex => ex.exerciseId);
@@ -96,15 +97,25 @@ export default function ExerciseBottomSheet({
         setSelectedExercises(new Set(existingExercises));
       }
     } else {
-      // Clear selection when closing
+      // Clear selection and reset filters when closing
       setSelectedExercises(new Set());
+      setSearchQuery('');
+      setSelectedEquipment('All Equipment');
     }
-  }, [visible, selectedEquipment, muscleGroup]);
+  }, [visible, muscleGroup]);
 
+  // Separate effect for equipment filter - only reload exercises, preserve selections
+  useEffect(() => {
+    if (visible && selectedEquipment) {
+      loadExercises();
+    }
+  }, [selectedEquipment]);
+
+  // Search effect
   useEffect(() => {
     if (searchQuery.length > 0) {
       performSearch();
-    } else {
+    } else if (visible) {
       loadExercises();
     }
   }, [searchQuery]);
@@ -201,7 +212,6 @@ export default function ExerciseBottomSheet({
 
   const handleExercisePress = (exerciseId: string) => {
     Haptics.selectionAsync();
-    // Directly toggle selection instead of navigating
     toggleExercise(exerciseId);
   };
 
@@ -232,7 +242,6 @@ export default function ExerciseBottomSheet({
     }
 
     // Convert selected exercises to WorkoutExercise format
-    // Use allExercises cache instead of filtered exercises array
     const workoutExercises: WorkoutExercise[] = Array.from(selectedExercises)
       .map((exerciseId) => {
         const exercise = allExercises.find(ex => ex.id === exerciseId);
@@ -243,10 +252,10 @@ export default function ExerciseBottomSheet({
         return {
           exerciseId: exercise.id,
           exerciseName: exercise.name,
-          sets: 3, // Default
-          reps: 10, // Default
-          restSeconds: 60, // Default
-          muscleGroup: muscleGroup, // Add muscle group identifier
+          sets: 3,
+          reps: 10,
+          restSeconds: 60,
+          muscleGroup: muscleGroup,
         };
       })
       .filter((ex): ex is WorkoutExercise => ex !== null);
@@ -256,7 +265,7 @@ export default function ExerciseBottomSheet({
     // Add all exercises to store in one call
     addExercisesToDay(day, workoutExercises);
 
-    // Close modal (selection will be cleared by useEffect)
+    // Close modal
     onClose();
   };
 

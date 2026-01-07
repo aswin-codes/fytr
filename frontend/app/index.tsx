@@ -18,7 +18,7 @@ export default function Home() {
   useEffect(() => {
     if (loading) return;
     
-    router.replace('/(plan)/PlanTypeScreen');
+    //router.replace('/(plan)/PlanTypeScreen');
     const handleRouting = async () => {
       // Logged in → check onboarding
       const storedUser: UserType | null = await userStorage.getUser();
@@ -36,7 +36,7 @@ export default function Home() {
       }
     };
 
-    //handleRouting();
+    handleRouting();
   }, [loading, user]);
 
   return (

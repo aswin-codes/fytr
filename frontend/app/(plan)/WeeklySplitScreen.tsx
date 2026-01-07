@@ -67,10 +67,9 @@ export default function WeeklySplitScreen() {
     }
 
     // Navigate to next step (to be created)
-    // router.push('/(plan)/review-plan');
+     router.push('/(plan)/CompletionScreen');
     
     // For now, just show confirmation
-    alert('Plan configuration complete! (Next screen coming soon)');
   };
 
   const getDayIcon = (day: string) => {

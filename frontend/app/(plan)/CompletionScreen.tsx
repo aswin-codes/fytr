@@ -1,24 +1,52 @@
 import { View, Text, TouchableOpacity, Image } from 'react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fontFamily } from '@/src/theme/fontFamily';
 import { useWorkoutPlanStore } from '@/src/store/workoutPlanStore';
+import { syncWorkoutPlan } from '@/src/controllers/workoutPlanController';
 import { useRouter } from 'expo-router';
 import { Check } from 'lucide-react-native';
 import { Toast } from 'toastify-react-native';
 import * as Haptics from 'expo-haptics';
 
 const CompletionScreen = () => {
-  const { savePlan, getTotalWorkoutDays } = useWorkoutPlanStore();
+  const { saveEditingPlan, currentEditingPlan } = useWorkoutPlanStore();
   const router = useRouter();
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleFinish = () => {
-    savePlan();
-    Toast.success('Workout plan created successfully!',);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    
-    // Navigate to home/dashboard
-    router.replace('/(app)/home');
+  // Calculate total workout days
+  const getTotalWorkoutDays = () => {
+    if (!currentEditingPlan) return 0;
+    return currentEditingPlan.schedule.filter(day => !day.isRestDay).length;
+  };
+
+  const handleFinish = async () => {
+    try {
+      setIsSaving(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      console.log('🔵 Step 1: Saving workout plan locally...');
+      saveEditingPlan();
+      console.log('✅ Step 1 Complete: Plan saved to local store');
+      
+      console.log('🔵 Step 2: Syncing workout plan to backend...');
+      await syncWorkoutPlan();
+      console.log('✅ Step 2 Complete: Plan synced to backend');
+      
+      Toast.success('Workout plan created successfully!');
+      
+      setIsSaving(false);
+      
+      // Navigate to home/dashboard
+      router.replace('/(app)/home');
+    } catch (error) {
+      console.error('❌ Error saving workout plan:', error);
+      setIsSaving(false);
+      
+      // Show error but still navigate - local save succeeded
+      Toast.error('Plan saved locally. Will sync when online.');
+      router.replace('/(app)/home');
+    }
   };
 
   return (
@@ -71,10 +99,13 @@ const CompletionScreen = () => {
       <View className="pb-8">
         <TouchableOpacity
           onPress={handleFinish}
-          className="h-16 items-center justify-center rounded-full bg-primary"
+          disabled={isSaving}
+          className={`h-16 items-center justify-center rounded-full ${
+            isSaving ? 'bg-gray-400' : 'bg-primary'
+          }`}
           activeOpacity={0.8}>
           <Text style={{ fontFamily: fontFamily.bold }} className="text-lg text-black">
-            Go to Dashboard →
+            {isSaving ? 'Saving...' : 'Go to Dashboard →'}
           </Text>
         </TouchableOpacity>
       </View>

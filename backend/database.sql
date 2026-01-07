@@ -133,3 +133,15 @@ CREATE INDEX idx_ai_form_analyses_recorded_at ON ai_form_analyses(recorded_at DE
 -- Create composite index for user + date queries
 CREATE INDEX idx_ai_form_analyses_user_recorded ON ai_form_analyses(user_id, recorded_at DESC);
 
+
+
+-- Workout Plans Table
+CREATE TABLE workout_plans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan_data JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_workout_plans_user_id ON workout_plans(user_id);

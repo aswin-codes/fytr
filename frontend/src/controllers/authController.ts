@@ -1,8 +1,9 @@
 import { registerUser, loginUser, loginUserWithGoogle } from "@/src/api/userClient";
 import { userStorage } from "@/src/store/userStorage";
 import { getUserOnboardingData } from "@/src/controllers/onboardingController";
-import { fetchQuotaStatus } from "@/src/controllers/quotaController"; // ADD THIS\import { fetchQuotaStatus } from "@/src/controllers/quotaController";
-import { fetchAllAnalyses } from "@/src/controllers/analysisController"; 
+import { fetchQuotaStatus } from "@/src/controllers/quotaController";
+import { fetchAllAnalyses } from "@/src/controllers/analysisController";
+import { fetchWorkoutPlan } from "@/src/controllers/workoutPlanController"; // ADD THIS
 
 export const registerEmailAndPassword = async (
     email: string,
@@ -23,7 +24,6 @@ export const registerEmailAndPassword = async (
         userStorage.saveUser(response.user);
         console.log("✅ Step 3 Complete: User saved to storage");
         
-        // ADD THIS: Fetch quota status
         console.log("🔵 Step 4: Fetching quota status...");
         try {
             await fetchQuotaStatus();
@@ -32,12 +32,20 @@ export const registerEmailAndPassword = async (
             console.error("⚠️ Failed to fetch quota:", error);
         }
         
-        console.log("🔵 Step 6: Fetching analyses...");
+        console.log("🔵 Step 5: Fetching analyses...");
         try {
             await fetchAllAnalyses();
-            console.log("✅ Step 6 Complete: Analyses fetched");
+            console.log("✅ Step 5 Complete: Analyses fetched");
         } catch (error) {
             console.error("⚠️ Failed to fetch analyses:", error);
+        }
+        
+        console.log("🔵 Step 6: Fetching workout plan...");
+        try {
+            await fetchWorkoutPlan();
+            console.log("✅ Step 6 Complete: Workout plan fetched");
+        } catch (error) {
+            console.error("⚠️ Failed to fetch workout plan:", error);
         }
         
         return response;
@@ -47,7 +55,11 @@ export const registerEmailAndPassword = async (
     }
 }
 
-export const loginUserWithEmailAndPassword = async (email: string, password: string, loginEmailPassword: (email: string, password: string) => Promise<void>) => {
+export const loginUserWithEmailAndPassword = async (
+    email: string,
+    password: string,
+    loginEmailPassword: (email: string, password: string) => Promise<void>
+) => {
     try {
         console.log("🔵 Step 1: Logging in with email and password...");
         await loginEmailPassword(email, password);
@@ -61,7 +73,6 @@ export const loginUserWithEmailAndPassword = async (email: string, password: str
         userStorage.saveUser(response.user);
         console.log("✅ Step 3 Complete: User saved to storage");
         
-        // Check if user completed onboarding and fetch their data
         if (response.user?.onboarding_completed) {
             console.log("🔵 Step 4: User has completed onboarding, fetching onboarding data...");
             try {
@@ -72,7 +83,6 @@ export const loginUserWithEmailAndPassword = async (email: string, password: str
             }
         }
         
-        // ADD THIS: Fetch quota status
         console.log("🔵 Step 5: Fetching quota status...");
         try {
             await fetchQuotaStatus();
@@ -87,6 +97,14 @@ export const loginUserWithEmailAndPassword = async (email: string, password: str
             console.log("✅ Step 6 Complete: Analyses fetched");
         } catch (error) {
             console.error("⚠️ Failed to fetch analyses:", error);
+        }
+        
+        console.log("🔵 Step 7: Fetching workout plan...");
+        try {
+            await fetchWorkoutPlan();
+            console.log("✅ Step 7 Complete: Workout plan fetched");
+        } catch (error) {
+            console.error("⚠️ Failed to fetch workout plan:", error);
         }
         
         return response;
@@ -110,7 +128,6 @@ export const loginWithGoogle = async (googleLogin: () => Promise<string | null>)
         userStorage.saveUser(response.user);
         console.log("✅ Step 3 Complete: User saved to storage");
         
-        // Check if user completed onboarding and fetch their data
         if (response.user?.onboarding_completed) {
             console.log("🔵 Step 4: User has completed onboarding, fetching onboarding data...");
             try {
@@ -121,7 +138,6 @@ export const loginWithGoogle = async (googleLogin: () => Promise<string | null>)
             }
         }
         
-        // ADD THIS: Fetch quota status
         console.log("🔵 Step 5: Fetching quota status...");
         try {
             await fetchQuotaStatus();
@@ -136,6 +152,14 @@ export const loginWithGoogle = async (googleLogin: () => Promise<string | null>)
             console.log("✅ Step 6 Complete: Analyses fetched");
         } catch (error) {
             console.error("⚠️ Failed to fetch analyses:", error);
+        }
+        
+        console.log("🔵 Step 7: Fetching workout plan...");
+        try {
+            await fetchWorkoutPlan();
+            console.log("✅ Step 7 Complete: Workout plan fetched");
+        } catch (error) {
+            console.error("⚠️ Failed to fetch workout plan:", error);
         }
         
         return response;
