@@ -57,7 +57,7 @@ export default function TabsLayout() {
 
       {/* LOG */}
       <Tabs.Screen
-        name="log/index"
+        name="log"
         options={{
           tabBarIcon: ({ focused }) => (
             <ClipboardList color={focused ? activeColor : inactiveColor} />
