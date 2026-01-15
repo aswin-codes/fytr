@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { View } from 'react-native';
+import { View, Image } from 'react-native';
 import { useColorScheme } from 'nativewind';
 import {
   Home,
@@ -12,6 +12,7 @@ import ProtectedRoute from '@/src/auth/protectedRoutes';
 import { useEffect } from 'react';
 import { fetchQuotaStatus } from '@/src/controllers/quotaController';
 import { fetchAllAnalyses } from '@/src/controllers/analysisController';
+import { Images } from '@/src/constants/assets';
 
 export default function TabsLayout() {
   const { colorScheme } = useColorScheme();
@@ -70,8 +71,8 @@ export default function TabsLayout() {
         name="ai"
         options={{
           tabBarIcon: () => (
-            <View className="h-16 w-16 -mt-5 items-center justify-center rounded-full bg-primary shadow-lg">
-              <QrCode color="#0F0F0F" />
+            <View className="h-16 w-16 -mt-8 items-center justify-center rounded-full bg-primary shadow-lg">
+              <Image source={Images.lens}  className='h-8 w-8'/>
             </View>
           ),
         }}

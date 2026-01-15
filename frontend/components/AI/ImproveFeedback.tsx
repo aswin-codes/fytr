@@ -21,7 +21,7 @@ const ImprovementFeedbackList: React.FC<ImprovementFeedbackListProps> = ({
       <View className="flex-row items-center mb-4">
         <X size={20} color={iconColor} strokeWidth={2.5} />
         <Text 
-          style={{ fontFamily: fontFamily.bold }} 
+          style={{ fontFamily: fontFamily.semiBold }} 
           className="text-textPrimary-light dark:text-textPrimary-dark text-base ml-2"
         >
           {title}

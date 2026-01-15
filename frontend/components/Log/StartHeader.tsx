@@ -35,7 +35,7 @@ const StartHeader = () => {
 
   const getDayStatus = (year: number, month: number, day: number) => {
     const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
-    console.log(monthKey)
+    
     const dayKey = String(day);
     
     // Type cast to access dynamic keys
@@ -120,7 +120,7 @@ const StartHeader = () => {
   };
 
   return (
-    <View className="mb-6">
+    <View className="mb-6 ">
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center">
           <Text style={{fontFamily: fontFamily.semiBold}} className="text-textPrimary-light dark:text-textPrimary-dark font-black text-2xl">Logger</Text>
