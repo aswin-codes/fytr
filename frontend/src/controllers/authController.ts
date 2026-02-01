@@ -11,6 +11,9 @@ export const registerEmailAndPassword = async (
     fullName: string,
     createAccountEmailPassword: (email: string, password: string, fullName: string) => Promise<void>
 ) => {
+
+  
+
     try {
         console.log("🔵 Step 1: Creating Firebase account...");
         await createAccountEmailPassword(email, password, fullName);

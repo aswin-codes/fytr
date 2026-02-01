@@ -52,7 +52,8 @@ export default function HomeScreen() {
   const todaysWorkout = getTodaysWorkout();
   const hasActivePlan = plans.length > 0;
   const hasTodaysWorkout = todaysWorkout && !todaysWorkout.isRestDay;
-
+  console.log(todaysWorkout);
+  console.log(plans);
   // Navigation handlers
   const handleStartWorkout = () => {
     router.push(`/(app)/workout/session?day=${currentDay}`);
@@ -96,7 +97,7 @@ export default function HomeScreen() {
 
         {/* Active Plan or No Plan State */}
         <View className="px-6 mb-6">
-          {hasActivePlan && hasTodaysWorkout ? (
+          {hasActivePlan ? (
             <ActivePlanCard
               workout={todaysWorkout}
               onStartWorkout={handleStartWorkout}
