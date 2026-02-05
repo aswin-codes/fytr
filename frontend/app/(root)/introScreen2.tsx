@@ -15,7 +15,7 @@ const slides = [
     title: 'Perfect every ',
     highlightText: 'rep',
     titleEnd: ' with AI',
-    description: 'Upload workout videos and get instant form correction feedback'
+    description: 'Upload videos and get instant form correction feedback'
   },
   {
     id: 2,
@@ -23,7 +23,7 @@ const slides = [
     title: 'Train smarter, ',
     highlightText: 'track everything',
     titleEnd: '',
-    description: 'Log workouts, meals, and build powerful streaks with AI precision'
+    description: 'Track your progress and build powerful streaks with AI precision'
   },
   {
     id: 3,

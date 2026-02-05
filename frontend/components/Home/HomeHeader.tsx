@@ -24,7 +24,7 @@ export default function HomeHeader({ firstName }: HomeHeaderProps) {
           style={{ fontFamily: fontFamily.regular }}
           className="text-base text-textSecondary-light dark:text-textSecondary-dark mt-1"
         >
-          Let's crush today's workout
+          Ready to get started?
         </Text>
       </View>
 

@@ -39,7 +39,7 @@ export const uploadVideoToCloudinary = async (
     formData.append('upload_preset', cloudinaryConfig.uploadPreset);
     formData.append('folder', cloudinaryConfig.folder);
     formData.append('resource_type', 'video');
-    formData.append('tags', 'ai-analysis,form-check,workout');
+    formData.append('tags', 'ai-analysis,form-check');
 
     const response = await axios.post(
       `https://api.cloudinary.com/v1_1/${cloudinaryConfig.cloudName}/video/upload`,

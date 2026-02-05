@@ -223,7 +223,7 @@ const ForgotPasswordScreen = () => {
                                                 style={{ fontFamily: fontFamily.semiBold }}
                                                 className="text-textPrimary-light dark:text-textPrimary-dark text-base"
                                             >
-                                                Back to Login
+                                                Back
                                             </Text>
                                         </TouchableOpacity>
                                     </View>

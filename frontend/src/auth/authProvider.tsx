@@ -1,4 +1,4 @@
-import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, sendPasswordResetEmail, signInWithCredential, signInWithEmailAndPassword, signOut, updateProfile, User } from "firebase/auth";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, sendPasswordResetEmail, signInWithCredential, signInWithEmailAndPassword, signOut, updateProfile, User, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { createContext, useEffect, useState } from "react";
 import React from "react"
@@ -10,11 +10,21 @@ interface authContextProps {
     createAccountEmailPassword:  (email: string, password : string, fullName : string) => Promise<void>;
     loginEmailPassword : (email : string, password : string) => Promise<void>;
     forgotPassword : (email : string) => Promise<void>;
+    changePassword : (currentPassword: string, newPassword: string) => Promise<void>;
     googleLogin : () => Promise<string|null>;
     logout: () => Promise<void>;
 }
 
-export const AuthContext = createContext<authContextProps>({user : null, loading : false, createAccountEmailPassword : async () => {}, loginEmailPassword : async () => {}, forgotPassword : async () => {}, googleLogin : async () => "", logout : async () => {}});
+export const AuthContext = createContext<authContextProps>({
+    user : null, 
+    loading : false, 
+    createAccountEmailPassword : async () => {}, 
+    loginEmailPassword : async () => {}, 
+    forgotPassword : async () => {}, 
+    changePassword : async () => {},
+    googleLogin : async () => "", 
+    logout : async () => {}
+});
 
 export function AuthProvider({children} : any) {
     const [user, setUser] = useState<User | null>(null);
@@ -90,7 +100,37 @@ export function AuthProvider({children} : any) {
             console.log("Password reset email sent");
         } catch (error : any) {
             console.log("Error sending password reset email : ", error.message);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }
 
+    const changePassword = async (currentPassword: string, newPassword: string) => {
+        try {
+            setLoading(true);
+            
+            // Get current user
+            const currentUser = auth.currentUser;
+            if (!currentUser || !currentUser.email) {
+                throw new Error("No user is currently signed in");
+            }
+
+            // Re-authenticate user with current password
+            const credential = EmailAuthProvider.credential(
+                currentUser.email,
+                currentPassword
+            );
+            
+            await reauthenticateWithCredential(currentUser, credential);
+            console.log("User re-authenticated successfully");
+
+            // Update password
+            await updatePassword(currentUser, newPassword);
+            console.log("Password updated successfully");
+            
+        } catch (error : any) {
+            console.log("Error changing password : ", error.message);
             throw error;
         } finally {
             setLoading(false);
@@ -119,7 +159,16 @@ export function AuthProvider({children} : any) {
     }
 
     return (
-        <AuthContext.Provider value={{user, loading, createAccountEmailPassword, loginEmailPassword, logout, forgotPassword, googleLogin}}>
+        <AuthContext.Provider value={{
+            user, 
+            loading, 
+            createAccountEmailPassword, 
+            loginEmailPassword, 
+            logout, 
+            forgotPassword, 
+            changePassword,
+            googleLogin
+        }}>
             {children}
         </AuthContext.Provider>
     )

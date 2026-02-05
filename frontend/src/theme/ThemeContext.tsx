@@ -9,10 +9,9 @@ interface ThemeContextProps {
 }
 
 const ThemeContext = createContext<ThemeContextProps>({
-  mode: "light" ,
-  toggleTheme: () => {},
+  mode: "dark",
+  toggleTheme: () => { },
 });
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { colorScheme, setColorScheme } = useColorScheme();
 
