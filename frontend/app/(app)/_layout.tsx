@@ -3,7 +3,7 @@ import { View, Image } from 'react-native';
 import { useColorScheme } from 'nativewind';
 import {
   Home,
-  ClipboardList,
+  ScanLine,
   User,
   QrCode,
   Dumbbell,
@@ -39,7 +39,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          
+          paddingVertical: 10,
           backgroundColor: colorScheme === 'dark' ? '#1d1c1c' : '#FFFFFF',
           borderTopWidth: 0,
           elevation: 0,
@@ -56,24 +56,12 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* LOG */}
-      <Tabs.Screen
-        name="log"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <ClipboardList color={focused ? activeColor : inactiveColor} />
-          ),
-        }}
-      />
-
       {/* AI FORM (CENTER) */}
       <Tabs.Screen
         name="ai"
         options={{
-          tabBarIcon: () => (
-            <View className="h-16 w-16 -mt-8 items-center justify-center rounded-full bg-primary shadow-lg">
-              <Image source={Images.lens}  className='h-8 w-8'/>
-            </View>
+          tabBarIcon: ({ focused }) => (
+            <ScanLine color={focused ? activeColor : inactiveColor} />
           ),
         }}
       />
@@ -90,7 +78,7 @@ export default function TabsLayout() {
 
       {/* PROFILE */}
       <Tabs.Screen
-        name="profile/index"
+        name="profile"
         options={{
           tabBarIcon: ({ focused }) => (
             <User color={focused ? activeColor : inactiveColor} />

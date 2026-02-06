@@ -1,25 +1,13 @@
-const winston = require("winston");
-
-const logger = winston.createLogger({
-  level: "info",
-  format: winston.format.combine(
-    winston.format.colorize(),             // colored logs
-    winston.format.timestamp(),            // add timestamp
-    winston.format.errors({ stack: true }),// show full stack on errors
-    winston.format.printf(
-      ({ level, message, timestamp, stack }) =>
-        `${timestamp} [${level}]: ${stack || message}`
-    )
-  ),
-  transports: [
-    new winston.transports.Console()
-  ]
-});
-
-logger.stream = {
-  write: (message) => {
-    logger.info(message.trim());
-  },
+// Placeholder for logger.js
+const logger = {
+    info: (...args) => console.log('INFO:', ...args),
+    warn: (...args) => console.warn('WARN:', ...args),
+    error: (...args) => console.error('ERROR:', ...args),
+    stream: {
+        write: (message) => {
+            console.log(message.trim());
+        }
+    }
 };
 
 module.exports = logger;

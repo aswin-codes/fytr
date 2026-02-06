@@ -8,7 +8,8 @@ export default function RootLayout() {
             <Stack.Screen name="GetStartedScreen"  />
             <Stack.Screen name="CreateAccountScreen"  />
             <Stack.Screen name="LoginScreen"  />
-            <Stack.Screen name="ForgotPassword"  />                                                                   
+            <Stack.Screen name="ForgotPassword"  />
+            <Stack.Screen name="ChangePasswordScreen"  />                                                                   
         </Stack>
     );
 }

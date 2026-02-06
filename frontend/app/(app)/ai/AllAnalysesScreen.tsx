@@ -93,7 +93,7 @@ const AllAnalysesScreen = () => {
         <Text
           style={{ fontFamily: fontFamily.regular }}
           className="mt-2 text-sm text-textSecondary-light dark:text-textSecondary-dark">
-          Record your first workout to get started
+          Record your first analysis to get started
         </Text>
       </View>
     );

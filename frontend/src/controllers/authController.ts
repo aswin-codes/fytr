@@ -3,7 +3,6 @@ import { userStorage } from "@/src/store/userStorage";
 import { getUserOnboardingData } from "@/src/controllers/onboardingController";
 import { fetchQuotaStatus } from "@/src/controllers/quotaController";
 import { fetchAllAnalyses } from "@/src/controllers/analysisController";
-import { fetchWorkoutPlan } from "@/src/controllers/workoutPlanController"; // ADD THIS
 
 export const registerEmailAndPassword = async (
     email: string,
@@ -11,6 +10,9 @@ export const registerEmailAndPassword = async (
     fullName: string,
     createAccountEmailPassword: (email: string, password: string, fullName: string) => Promise<void>
 ) => {
+
+  
+
     try {
         console.log("🔵 Step 1: Creating Firebase account...");
         await createAccountEmailPassword(email, password, fullName);
@@ -38,14 +40,6 @@ export const registerEmailAndPassword = async (
             console.log("✅ Step 5 Complete: Analyses fetched");
         } catch (error) {
             console.error("⚠️ Failed to fetch analyses:", error);
-        }
-        
-        console.log("🔵 Step 6: Fetching workout plan...");
-        try {
-            await fetchWorkoutPlan();
-            console.log("✅ Step 6 Complete: Workout plan fetched");
-        } catch (error) {
-            console.error("⚠️ Failed to fetch workout plan:", error);
         }
         
         return response;
@@ -99,14 +93,6 @@ export const loginUserWithEmailAndPassword = async (
             console.error("⚠️ Failed to fetch analyses:", error);
         }
         
-        console.log("🔵 Step 7: Fetching workout plan...");
-        try {
-            await fetchWorkoutPlan();
-            console.log("✅ Step 7 Complete: Workout plan fetched");
-        } catch (error) {
-            console.error("⚠️ Failed to fetch workout plan:", error);
-        }
-        
         return response;
     } catch (error) {
         console.error("Error in loginEmailAndPassword:", error);
@@ -152,14 +138,6 @@ export const loginWithGoogle = async (googleLogin: () => Promise<string | null>)
             console.log("✅ Step 6 Complete: Analyses fetched");
         } catch (error) {
             console.error("⚠️ Failed to fetch analyses:", error);
-        }
-        
-        console.log("🔵 Step 7: Fetching workout plan...");
-        try {
-            await fetchWorkoutPlan();
-            console.log("✅ Step 7 Complete: Workout plan fetched");
-        } catch (error) {
-            console.error("⚠️ Failed to fetch workout plan:", error);
         }
         
         return response;

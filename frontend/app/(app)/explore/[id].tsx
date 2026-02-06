@@ -319,22 +319,7 @@ export default function ExerciseDetailScreen() {
           </View>*/}
         </View>
 
-        {/* Bottom CTA
-        <View className="px-4 pb-8">
-          <TouchableOpacity
-            onPress={() => router.push(`/workout/add-exercise/${id}`)}
-            className="bg-surface-light dark:bg-surface-dark rounded-2xl p-4 flex-row items-center justify-center gap-2 border-2 border-border-light dark:border-border-dark"
-          >
-            <Ionicons
-              name="add-circle"
-              size={24}
-              color={isDark ? '#FFFFFF' : '#0F0F0F'}
-            />
-            <Text className="text-base font-bold text-textPrimary-light dark:text-textPrimary-dark">
-              Add to Workout
-            </Text>
-          </TouchableOpacity>
-        </View>*/}
+
 
         {/* Bottom Spacing */}
         <View className="h-8" />

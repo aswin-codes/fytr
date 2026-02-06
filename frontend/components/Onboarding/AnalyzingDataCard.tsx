@@ -27,7 +27,7 @@ const AnalyzingDataCard = ({ isActive }: { isActive: boolean }) => {
 
   const [steps, setSteps] = useState<AnalysisStep[]>([
     { id: 1, text: 'Calculating metabolic rate', completed: false },
-    { id: 2, text: 'Optimizing workout schedule', completed: false },
+    
     { id: 3, text: 'Finalizing nutrition targets...', completed: false },
   ]);
 
@@ -97,7 +97,7 @@ const AnalyzingDataCard = ({ isActive }: { isActive: boolean }) => {
   
     setSteps([
       { id: 1, text: 'Calculating metabolic rate', completed: false },
-      { id: 2, text: 'Optimizing workout schedule', completed: false },
+      
       { id: 3, text: 'Finalizing nutrition targets...', completed: false },
     ]);
   
