@@ -2,8 +2,8 @@ import { getToken } from "@/src/utils/getToken";
 import axios from "axios";
 
 export const apiClient = axios.create({
-    baseURL: "http://172.17.70.112:3000/api",
-    //baseURL: 'https://backendfytr.vercel.app/api',
+    //baseURL: "http://172.17.70.112:3000/api",
+    baseURL: 'https://backendfytr.vercel.app/api',
     timeout: 20000,
 });
 

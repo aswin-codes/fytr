@@ -106,7 +106,7 @@ const AllAnalysesScreen = () => {
           data={analyses}
           renderItem={({ item }) => <AnalysisPreviewCard analysis={item} />}
           keyExtractor={(item) => item.id}
-          estimatedItemSize={120}
+          //estimatedItemSize={120}
           ListHeaderComponent={renderHeader}
           ListFooterComponent={renderFooter}
           ListEmptyComponent={renderEmpty}
