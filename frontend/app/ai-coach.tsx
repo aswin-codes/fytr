@@ -28,6 +28,7 @@ export default function AICoachScreen() {
   const [micPermission, requestMicPermission] = useMicrophonePermissions();
 
   const [isConnected, setIsConnected] = useState(false);
+  const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [timeLeft, setTimeLeft] = useState(180); // 3 minutes
@@ -56,7 +57,7 @@ export default function AICoachScreen() {
   // Continuous recording logic when not muted
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isConnected && !isMuted && !isPaused) {
+    if (isConnected && isSetupComplete && !isMuted && !isPaused) {
         startRecording();
         interval = setInterval(async () => {
             await stopRecording();
@@ -67,7 +68,7 @@ export default function AICoachScreen() {
         if (interval) clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, isMuted, isPaused]);
+  }, [isConnected, isSetupComplete, isMuted, isPaused]);
 
   const connectToGemini = () => {
     const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
@@ -84,6 +85,7 @@ export default function AICoachScreen() {
         ws.current.onopen = () => {
           console.log("Connected to Gemini Live API");
           setIsConnected(true);
+          setIsSetupComplete(false);
 
           const setupMessage = {
             setup: {
@@ -123,6 +125,7 @@ export default function AICoachScreen() {
                 // Handle setup complete
                 if (data.setupComplete) {
                     console.log("Gemini Setup Complete");
+                    setIsSetupComplete(true);
                     return;
                 }
 
@@ -162,6 +165,7 @@ export default function AICoachScreen() {
         ws.current.onclose = (event) => {
           console.log(`Gemini WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`);
           setIsConnected(false);
+          setIsSetupComplete(false);
           stopFrameStreaming();
           if (event.code !== 1000) {
               setAiText(`Connection lost (Code ${event.code}). Please try again.`);
@@ -176,7 +180,7 @@ export default function AICoachScreen() {
   const startFrameStreaming = () => {
       // Stream a frame every 2 seconds for analysis
       frameTimerRef.current = setInterval(async () => {
-          if (cameraRef.current && ws.current?.readyState === WebSocket.OPEN && !isPaused) {
+          if (cameraRef.current && ws.current?.readyState === WebSocket.OPEN && isSetupComplete && !isPaused) {
               try {
                   const photo = await cameraRef.current.takePictureAsync({
                       quality: 0.3,
@@ -296,7 +300,7 @@ export default function AICoachScreen() {
           await recordingRef.current.stopAndUnloadAsync();
           const uri = recordingRef.current.getURI();
 
-          if (uri && ws.current && ws.current.readyState === WebSocket.OPEN) {
+          if (uri && ws.current && ws.current.readyState === WebSocket.OPEN && isSetupComplete) {
               const base64Audio = await FileSystem.readAsStringAsync(uri, {
                   encoding: 'base64' as any,
               });
