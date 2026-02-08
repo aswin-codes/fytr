@@ -8,6 +8,12 @@ import { useFonts } from "expo-font";
 import { View, Text, ActivityIndicator } from "react-native";
 import ToastManager from 'toastify-react-native';
 import { useAppInitialization } from "@/src/hooks/useAppInitialization";
+import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
+
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false, // This kills that specific "Reading from value" warning
+});
 
 export default function Layout() {
   // Load fonts

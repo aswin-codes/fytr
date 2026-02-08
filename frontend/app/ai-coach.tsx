@@ -6,352 +6,676 @@ import {
   StyleSheet,
   SafeAreaView,
   Alert,
-  ActivityIndicator,
-  Platform,
   Animated,
+  Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { fontFamily } from '@/src/theme/fontFamily';
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { BlurView } from 'expo-blur';
 
-// Constants for Gemini Multimodal Live API
-const GEMINI_WS_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BiDiSession";
+// --- CONFIGURATION ---
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+const WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${GEMINI_API_KEY}`;
+const MODEL_NAME = "models/gemini-2.5-flash-native-audio-latest";
 
 export default function AICoachScreen() {
   const router = useRouter();
   const { exerciseName } = useLocalSearchParams<{ exerciseName: string }>();
+
+  // Permissions
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [micPermission, requestMicPermission] = useMicrophonePermissions();
 
-  const [isConnected, setIsConnected] = useState(false);
+  // State
+  const [isComponentsReady, setIsComponentsReady] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [isMuted, setIsMuted] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(180); // 3 minutes
-  const [aiText, setAiText] = useState("Connecting to AI Coach...");
+  const [timeLeft, setTimeLeft] = useState(180);
+  const [aiText, setAiText] = useState("Initializing...");
   const [formCorrection, setFormCorrection] = useState<string | null>(null);
+  const [isStreamingStarted, setIsStreamingStarted] = useState(false);
+  const lastResponseTimeRef = useRef<number>(Date.now());
 
+  // Refs
   const ws = useRef<WebSocket | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const frameTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const feedbackNudgeRef = useRef<NodeJS.Timeout | null>(null);
   const cameraRef = useRef<CameraView>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const audioQueue = useRef<string[]>([]);
+  const audioChunksBuffer = useRef<string[]>([]); // Buffer for collecting audio chunks
+  const isPlayingRef = useRef(false);
+  const isVideoActive = useRef(false);
+  const currentSoundRef = useRef<Audio.Sound | null>(null);
   const waveformAnim = useRef(new Animated.Value(0)).current;
 
+  // --- 1. INITIALIZATION SEQUENCE ---
   useEffect(() => {
-    startWaveformAnimation();
-    connectToGemini();
-    startTimer();
+    let isMounted = true;
 
-    return () => {
-      stopSession();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Continuous recording logic when not muted
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isConnected && !isMuted && !isPaused) {
-        startRecording();
-        interval = setInterval(async () => {
-            await stopRecording();
-            await startRecording();
-        }, 4000);
-    }
-    return () => {
-        if (interval) clearInterval(interval);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, isMuted, isPaused]);
-
-  const connectToGemini = () => {
-    const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-    if (!apiKey) {
-        setAiText("API Key missing. Please set EXPO_PUBLIC_GEMINI_API_KEY.");
+    const sequenceInit = async () => {
+      // Step A: Check Permissions
+      if (!cameraPermission?.granted || !micPermission?.granted) return;
+      if (!GEMINI_API_KEY) {
+        setAiText("API Key Missing!");
         return;
-    }
+      }
 
-    const url = `${GEMINI_WS_URL}?key=${apiKey}`;
+      try {
+        // Step B: Setup Audio Mode (CRITICAL: Do this before Camera mounts)
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
+        });
+
+        // Step C: Mark components as ready to render (Mounts Camera)
+        if (isMounted) setIsComponentsReady(true);
+
+        // Step D: Wait a moment for Camera to settle, then Connect
+        setTimeout(() => {
+          if (isMounted) connectToGemini();
+        }, 1000);
+
+      } catch (e) {
+        console.error("Init Error:", e);
+        Alert.alert("Initialization Error", "Could not setup audio/video.");
+      }
+    };
+
+    sequenceInit();
+    return () => { isMounted = false; cleanupSession(); };
+  }, [cameraPermission, micPermission]);
+
+  // --- 2. WEBSOCKET CONNECTION ---
+  const connectToGemini = () => {
+    if (ws.current) ws.current.close();
+    setConnectionStatus('connecting');
+
+    const socket = new WebSocket(WS_URL);
+    ws.current = socket;
+
+    socket.onopen = () => {
+      console.log("Connected. Sending Setup...");
+      
+      const setupMessage = {
+        setup: {
+          model: MODEL_NAME,
+          generation_config: {
+            response_modalities: ["AUDIO"],
+            speech_config: {
+              voice_config: {
+                prebuilt_voice_config: {
+                  voice_name: "Puck" // Options: Puck, Charon, Kore, Fenrir, Aoede
+                }
+              }
+            }
+          },
+          system_instruction: {
+            parts: [{
+              text: `You are an AI fitness coach giving live feedback using VERY LOW-FPS camera snapshots.
+
+CRITICAL REALITY CONSTRAINTS:
+- You receive infrequent, blurry, downscaled images.
+- Visual details (like clothing color) may be unclear or unreliable.
+- You MUST NOT guess visual details.
+
+ABSOLUTE RULES:
+1. If you are NOT CERTAIN about something you see, say:
+   - "I can’t clearly tell"
+   - "That’s hard to see from the frames"
+   - "I’m not confident about that detail"
+2. NEVER guess colors, clothing, or appearance.
+3. NEVER invent visual details to answer a question.
+4. Only describe what you are visually confident about.
+
+MOVEMENT INTERPRETATION:
+- If body position or posture changes across frames, assume the user IS exercising.
+- Motion can be inferred across multiple frames.
+- Do NOT require continuous movement in one image.
+
+FEEDBACK RULES:
+- Prioritize acknowledging movement over denying it.
+- If unsure about form, say so briefly and encourage continuation.
+
+REP COUNTING:
+- Count reps approximately.
+- If uncertain, say "That looks like rep X" instead of denying reps.
+
+STYLE:
+- 1 short sentence (2 max)
+- Supportive and factual
+- Honest about uncertainty
+
+GOOD RESPONSES:
+- "I see movement — keep going"
+- "That looks like a rep, continue"
+- "Hard to see fine details, but your movement looks good"
+
+BAD RESPONSES (FORBIDDEN):
+- Saying the user isn’t exercising when movement exists
+- Confident statements about unclear visuals
+`
+            }]
+          }
+        }
+      };
+      
+      console.log("Sending setup:", JSON.stringify(setupMessage, null, 2));
+      socket.send(JSON.stringify(setupMessage));
+    };
+
+    socket.onmessage = async (event) => {
+      try {
+        let msgData = event.data;
+        
+        console.log("Raw message type:", typeof msgData);
+        console.log("Raw message:", msgData);
+
+        // Handle Blob (React Native WebSocket returns Blob for binary data)
+        if (msgData instanceof Blob) {
+          msgData = await msgData.text(); // Use Blob.text() instead of FileReader
+        }
+        
+        // Handle ArrayBuffer
+        if (msgData instanceof ArrayBuffer) {
+          const decoder = new TextDecoder();
+          msgData = decoder.decode(msgData);
+        }
+
+        console.log("Processed message:", msgData);
+
+        // Skip empty messages
+        if (!msgData || msgData.length === 0) {
+          console.log("Empty message received, skipping");
+          return;
+        }
+
+        const data = JSON.parse(msgData as string);
+
+        if (data.setupComplete) {
+          console.log("✅ Gemini Live Ready");
+          setConnectionStatus('connected');
+          setFormCorrection("Starting session...");
+          
+          // Send initial message to trigger Gemini's introduction
+          sendToGemini({
+            client_content: {
+              turns: [{
+                role: "user",
+                parts: [{ text: "Hello! I'm ready to start my workout. Please introduce yourself and let me know you're ready to provide form feedback." }]
+              }],
+              turn_complete: true
+            }
+          });
+        }
+
+        if (data.serverContent) {
+          console.log("Server content received", isStreamingStarted ? "(during streaming)" : "(initial)");
+          
+          // Update last response time
+          lastResponseTimeRef.current = Date.now();
+          
+          // Check if this is the end of a turn
+          const turnComplete = data.serverContent.turnComplete;
+          
+          // Collect Audio Chunks
+          const audioPart = data.serverContent.modelTurn?.parts?.find((p:any) => p.inlineData);
+          if (audioPart) {
+            console.log("🔊 Received audio chunk");
+            audioChunksBuffer.current.push(audioPart.inlineData.data);
+          }
+          
+          // When turn is complete, concatenate and play all audio
+          if (turnComplete && audioChunksBuffer.current.length > 0) {
+            console.log("🎵 Turn complete, concatenating", audioChunksBuffer.current.length, "audio chunks");
+            const concatenatedAudio = concatenateAudioChunks(audioChunksBuffer.current);
+            queueAudio(concatenatedAudio);
+            audioChunksBuffer.current = []; // Clear buffer
+          }
+          
+          // Show Text
+          const textPart = data.serverContent.modelTurn?.parts?.find((p:any) => p.text);
+          if (textPart) {
+            console.log("💬 Received text:", textPart.text);
+            setFormCorrection(textPart.text);
+            
+            // Auto-clear feedback after 8 seconds if streaming
+            if (isStreamingStarted) {
+              setTimeout(() => {
+                setFormCorrection("Watching your form...");
+              }, 8000);
+            }
+          }
+          
+          // After first response, start streaming (only once)
+          if (turnComplete && !isStreamingStarted) {
+            console.log("✅ First turn complete, starting audio/video streaming...");
+            setIsStreamingStarted(true);
+            setFormCorrection("Watching your form...");
+            setTimeout(() => {
+              startAudioStreaming();
+              startVideoStreaming();
+              startFeedbackNudge();
+            }, 1000); // Small delay to let audio finish playing
+          }
+        }
+
+        // Handle tool call responses (if any)
+        if (data.toolCall) {
+          console.log("Tool call:", data.toolCall);
+        }
+
+        // Handle errors from server
+        if (data.error) {
+          console.error("Server error:", data.error);
+          setConnectionStatus('error');
+          setFormCorrection(`Error: ${data.error.message || 'Unknown error'}`);
+        }
+
+      } catch (e) {
+        console.error("Parse Error:", e);
+        console.error("Error details:", e instanceof Error ? e.message : 'Unknown error');
+      }
+    };
+
+    socket.onerror = (e) => {
+      console.error("Socket Error:", e);
+      setConnectionStatus('error');
+      setFormCorrection("Connection error occurred");
+    };
+
+    socket.onclose = (e) => {
+      console.log("Socket Closed:", e.code, e.reason);
+      setConnectionStatus('idle');
+      if (e.code !== 1000) {
+        setFormCorrection(`Connection closed: ${e.reason || 'Unknown reason'}`);
+      }
+    };
+  };
+
+  // --- 3. AUDIO STREAMING (MIC) ---
+  const startAudioStreaming = () => {
+    console.log("Starting audio streaming...");
+    recordChunk(); 
+    if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
+    audioIntervalRef.current = setInterval(recordChunk, 3000); // 3 seconds for stability
+  };
+
+  const recordChunk = async () => {
+    if (ws.current?.readyState !== WebSocket.OPEN || isMuted) return;
 
     try {
-        ws.current = new WebSocket(url);
-
-        ws.current.onopen = () => {
-          console.log("Connected to Gemini Live API");
-          setIsConnected(true);
-
-          const setupMessage = {
-            setup: {
-              model: "models/gemini-2.0-flash-exp",
-              generation_config: {
-                response_modalities: ["AUDIO"],
-                speech_config: {
-                  voice_config: {
-                    prebuilt_voice_config: {
-                      voice_name: "Aoede" // Encouraging voice
-                    }
-                  }
-                }
-              },
-              system_instruction: {
-                parts: [{
-                  text: `You are a professional gym coach. You are helping a user with ${exerciseName}.
-                  Observe their form via the camera and listen to their questions.
-                  IMPORTANT: You must be proactive. If you see a mistake in their form, speak up immediately.
-                  Don't wait for them to talk to you. Keep your feedback concise, encouraging, and highly corrective.
-                  This is a live session, so act as if you are standing right next to them.`
+      // 1. Stop and send previous recording
+      if (recordingRef.current) {
+        try {
+          const uri = recordingRef.current.getURI();
+          await recordingRef.current.stopAndUnloadAsync();
+          recordingRef.current = null;
+          
+          if (uri) {
+            // Read the WAV file as base64
+            const wavBase64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+            
+            // Decode WAV to get PCM data (skip 44-byte WAV header)
+            const wavBinary = atob(wavBase64);
+            const wavBytes = new Uint8Array(wavBinary.length);
+            for (let i = 0; i < wavBinary.length; i++) {
+              wavBytes[i] = wavBinary.charCodeAt(i);
+            }
+            
+            // Extract PCM data (skip 44-byte header)
+            const pcmBytes = wavBytes.slice(44);
+            
+            // Convert back to base64
+            let pcmBinary = '';
+            for (let i = 0; i < pcmBytes.length; i++) {
+              pcmBinary += String.fromCharCode(pcmBytes[i]);
+            }
+            const pcmBase64 = btoa(pcmBinary);
+            
+            // Send as PCM with sample rate specified in MIME type
+            sendToGemini({
+              realtime_input: {
+                media_chunks: [{
+                  mime_type: "audio/pcm;rate=16000",
+                  data: pcmBase64
                 }]
               }
-            }
-          };
-          ws.current?.send(JSON.stringify(setupMessage));
-          setAiText("Hello! I'm your AI Coach. I'm watching. How can I help with your " + (exerciseName || 'exercise') + "?");
-
-          // Start streaming frames
-          startFrameStreaming();
-        };
-
-        ws.current.onmessage = async (e) => {
-            try {
-                const data = JSON.parse(e.data);
-
-                // Handle setup complete
-                if (data.setupComplete) {
-                    console.log("Gemini Setup Complete");
-                    return;
-                }
-
-                if (data.serverContent?.modelTurn?.parts) {
-                    const parts = data.serverContent.modelTurn.parts;
-                    for (const part of parts) {
-                        if (part.text) {
-                            setAiText(part.text);
-                            // Simple logic to show form corrections in the floating card
-                            if (part.text.toLowerCase().includes('correction') ||
-                                part.text.toLowerCase().includes('form') ||
-                                part.text.length < 60) {
-                                setFormCorrection(part.text);
-                            }
-                        }
-                        if (part.inlineData) {
-                            // Audio data in base64
-                            playAudioResponse(part.inlineData.data);
-                        }
-                    }
-                }
-
-                // Also handle simple serverContent if it's just audio/text
-                if (data.serverContent?.turnComplete) {
-                    console.log("Turn complete");
-                }
-            } catch (err) {
-                console.error("Error parsing Gemini message:", err);
-            }
-        };
-
-        ws.current.onerror = (e: any) => {
-          console.error("Gemini WebSocket error:", e.message || e);
-          setAiText("Connection error. Ensure your API key is correct and has access to Gemini 2.0 Flash.");
-        };
-
-        ws.current.onclose = (event) => {
-          console.log(`Gemini WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`);
-          setIsConnected(false);
-          stopFrameStreaming();
-          if (event.code !== 1000) {
-              setAiText(`Connection lost (Code ${event.code}). Please try again.`);
+            });
+            console.log("✓ Sent audio chunk:", pcmBase64.length, "bytes");
           }
-        };
-    } catch (error) {
-        console.error("Failed to connect to Gemini:", error);
-        setAiText("Failed to connect to coach.");
+        } catch (stopError) {
+          console.log("Error stopping recording:", stopError);
+          recordingRef.current = null;
+        }
+      }
+
+      // 2. Start new recording
+      if (ws.current?.readyState === WebSocket.OPEN && !isMuted) {
+        try {
+          const { recording } = await Audio.Recording.createAsync({
+            ...Audio.RecordingOptionsPresets.LOW_QUALITY,
+            android: {
+                extension: '.wav',
+                outputFormat: Audio.AndroidOutputFormat.DEFAULT,
+                audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
+                sampleRate: 16000,
+                numberOfChannels: 1,
+            },
+            ios: {
+                extension: '.wav',
+                audioQuality: Audio.IOSAudioQuality.LOW,
+                sampleRate: 16000,
+                numberOfChannels: 1,
+                bitRate: 128000,
+                linearPCMBitDepth: 16,
+                linearPCMIsBigEndian: false,
+                linearPCMIsFloat: false,
+            },
+          });
+          recordingRef.current = recording;
+        } catch (startError) {
+          console.log("Error starting recording:", startError);
+        }
+      }
+    } catch (e) {
+      console.error("Mic Cycle Error:", e);
+      recordingRef.current = null;
     }
   };
 
-  const startFrameStreaming = () => {
-      // Stream a frame every 2 seconds for analysis
-      frameTimerRef.current = setInterval(async () => {
-          if (cameraRef.current && ws.current?.readyState === WebSocket.OPEN && !isPaused) {
-              try {
-                  const photo = await cameraRef.current.takePictureAsync({
-                      quality: 0.3,
-                      base64: true,
-                      scale: 0.5,
-                  });
-
-                  if (photo && photo.base64 && ws.current?.readyState === WebSocket.OPEN) {
-                      const frameMessage = {
-                          realtime_input: {
-                              media_chunks: [{
-                                  mime_type: "image/jpeg",
-                                  data: photo.base64
-                              }]
-                          }
-                      };
-                      ws.current.send(JSON.stringify(frameMessage));
-                  }
-              } catch (err) {
-                  console.error("Error capturing frame:", err);
-              }
-          }
-      }, 2000);
+  // --- 4. VIDEO STREAMING (CAMERA) ---
+ const startVideoStreaming = () => {
+    console.log("Starting high-frequency video streaming...");
+    isVideoActive.current = true;
+    captureFrameLoop();
   };
 
-  const stopFrameStreaming = () => {
-      if (frameTimerRef.current) clearInterval(frameTimerRef.current);
-  };
+  const captureFrameLoop = async () => {
+    // 1. Stop condition
+    if (!isVideoActive.current || !cameraRef.current || ws.current?.readyState !== WebSocket.OPEN) {
+      return;
+    }
 
-  const playAudioResponse = async (base64Audio: string) => {
-      try {
-          // Stop previous sound
-          if (soundRef.current) {
-              await soundRef.current.unloadAsync();
-          }
-
-          // In Expo, to play base64, we write to a temp file
-          const fileUri = ((FileSystem as any).cacheDirectory || '') + 'ai_response.mp3';
-          await FileSystem.writeAsStringAsync(fileUri, base64Audio, {
-              encoding: 'base64' as any,
-          });
-
-          const { sound } = await Audio.Sound.createAsync(
-              { uri: fileUri },
-              { shouldPlay: true }
-          );
-          soundRef.current = sound;
-      } catch (err) {
-          console.error("Error playing audio response:", err);
-      }
-  };
-
-  const startTimer = () => {
-    timerRef.current = setInterval(() => {
-      if (isPaused) return;
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          Alert.alert("Session Ended", "Your 3-minute coaching session has finished.");
-          router.back();
-          return 0;
-        }
-        return prev - 1;
+    try {
+      // 2. Take the picture (Optimized for speed)
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.1,    // Lowest quality (sufficient for AI form checks)
+        base64: true,    // We need the string
+        skipProcessing: true, // Android: Skip orientation/processing for speed
+        shutterSound: false,
+        // scale: 0.1 is not a valid prop for takePictureAsync in newer versions, 
+        // we rely on 'quality' and internal resizing if available, 
+        // or just send the lower quality full frame.
       });
-    }, 1000);
-  };
 
-  const startWaveformAnimation = () => {
-      Animated.loop(
-          Animated.sequence([
-              Animated.timing(waveformAnim, {
-                  toValue: 1,
-                  duration: 500,
-                  useNativeDriver: false,
-              }),
-              Animated.timing(waveformAnim, {
-                  toValue: 0,
-                  duration: 500,
-                  useNativeDriver: false,
-              })
-          ])
-      ).start();
-  };
-
-  const stopSession = () => {
-    if (ws.current) ws.current.close();
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (frameTimerRef.current) clearInterval(frameTimerRef.current);
-    if (recordingRef.current) stopRecording();
-    if (soundRef.current) soundRef.current.unloadAsync();
-  };
-
-  const startRecording = async () => {
-      try {
-          if (!micPermission?.granted) {
-              const res = await requestMicPermission();
-              if (!res.granted) return;
+      // 3. Send to Gemini immediately
+      if (photo.base64) {
+        sendToGemini({
+          realtime_input: {
+            media_chunks: [{ mime_type: "image/jpeg", data: photo.base64 }]
           }
-
-          await Audio.setAudioModeAsync({
-              allowsRecordingIOS: true,
-              playsInSilentModeIOS: true,
-          });
-
-          const { recording } = await Audio.Recording.createAsync(
-              Audio.RecordingOptionsPresets.LOW_QUALITY // Lower quality for smaller chunks
-          );
-          recordingRef.current = recording;
-      } catch (err) {
-          console.error('Failed to start recording', err);
+        });
       }
+    } catch (e) {
+      console.log("Frame skipped:", e);
+    }
+
+    // 4. Loop immediately (or with a tiny delay like 100ms)
+    // Using setTimeout prevents stack overflow and allows UI thread to breathe
+    if (isVideoActive.current) {
+      setTimeout(captureFrameLoop, 200); // 200ms = ~5 FPS (Good balance)
+    }
   };
 
-  const stopRecording = async () => {
-      if (!recordingRef.current) return;
-      try {
-          await recordingRef.current.stopAndUnloadAsync();
-          const uri = recordingRef.current.getURI();
+  const sendToGemini = (data: any) => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify(data));
+    }
+  };
 
-          if (uri && ws.current && ws.current.readyState === WebSocket.OPEN) {
-              const base64Audio = await FileSystem.readAsStringAsync(uri, {
-                  encoding: 'base64' as any,
-              });
-
-              const audioMessage = {
-                  realtime_input: {
-                      media_chunks: [{
-                          // Gemini Live prefers audio/pcm;rate=16000 but we send what expo-av provides
-                          // audio/mp4 might not be supported by Gemini Live BiDiSession
-                          mime_type: "audio/mp4",
-                          data: base64Audio
-                      }]
-                  }
-              };
-              if (ws.current?.readyState === WebSocket.OPEN) {
-                ws.current.send(JSON.stringify(audioMessage));
-              }
+  // --- 6. FEEDBACK NUDGE ---
+  const startFeedbackNudge = () => {
+    console.log("Starting feedback nudge timer...");
+    if (feedbackNudgeRef.current) clearInterval(feedbackNudgeRef.current);
+    
+    feedbackNudgeRef.current = setInterval(() => {
+      const timeSinceLastResponse = Date.now() - lastResponseTimeRef.current;
+      
+      // If no response in 15 seconds, send a text prompt
+      if (timeSinceLastResponse > 15000 && ws.current?.readyState === WebSocket.OPEN) {
+        console.log("⏰ Nudging for feedback...");
+        sendToGemini({
+          client_content: {
+            turns: [{
+              role: "user",
+              parts: [{ text: "How's my form looking? Only answer what you can clearly see. Now what color tshirt am I wearing ? " }]
+            }],
+            turn_complete: true
           }
-
-          recordingRef.current = null;
-      } catch (err) {
-          console.error('Failed to stop recording', err);
+        });
       }
+    }, 15000); // Check every 15 seconds
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  // --- 7. AUDIO CHUNK CONCATENATION ---
+  const concatenateAudioChunks = (chunks: string[]): string => {
+    if (chunks.length === 1) return chunks[0];
+    
+    // Decode all chunks to binary
+    const pcmArrays: Uint8Array[] = [];
+    let totalLength = 0;
+    
+    for (const chunk of chunks) {
+      const binary = atob(chunk);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      pcmArrays.push(bytes);
+      totalLength += bytes.length;
+    }
+    
+    // Concatenate all PCM data
+    const concatenated = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const arr of pcmArrays) {
+      concatenated.set(arr, offset);
+      offset += arr.length;
+    }
+    
+    // Convert back to base64
+    let binary = '';
+    for (let i = 0; i < concatenated.length; i++) {
+      binary += String.fromCharCode(concatenated[i]);
+    }
+    
+    return btoa(binary);
   };
 
-  if (!cameraPermission || !micPermission) {
-    return (
-        <View style={{ flex: 1, backgroundColor: 'black', alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator color="#F6F000" size="large" />
-        </View>
-    );
-  }
+  // --- 5. AUDIO PLAYBACK (PCM to WAV) ---
+  const queueAudio = (pcmBase64: string) => {
+    console.log("📥 Queueing audio chunk, queue length:", audioQueue.current.length);
+    audioQueue.current.push(pcmBase64);
+    if (!isPlayingRef.current) {
+      playNext();
+    }
+  };
 
-  if (!cameraPermission.granted || !micPermission.granted) {
+  const playNext = async () => {
+    if (audioQueue.current.length === 0) {
+      isPlayingRef.current = false;
+      console.log("✅ Audio queue empty");
+      return;
+    }
+    
+    isPlayingRef.current = true;
+    const pcmBase64 = audioQueue.current.shift();
+    
+    try {
+      // Unload previous sound if it exists
+      if (currentSoundRef.current) {
+        await currentSoundRef.current.unloadAsync().catch(() => {});
+        currentSoundRef.current = null;
+      }
+
+      // Decode PCM base64 to binary
+      const pcmBinary = atob(pcmBase64!);
+      const pcmBytes = new Uint8Array(pcmBinary.length);
+      for (let i = 0; i < pcmBinary.length; i++) {
+        pcmBytes[i] = pcmBinary.charCodeAt(i);
+      }
+      
+      console.log("🔊 Playing audio chunk:", pcmBytes.length, "bytes, queue remaining:", audioQueue.current.length);
+      
+      // Create WAV header for 24kHz, 16-bit, mono PCM
+      const wavHeader = createWavHeader(pcmBytes.length, 24000, 1, 16);
+      
+      // Combine header + PCM data
+      const wavFile = new Uint8Array(wavHeader.length + pcmBytes.length);
+      wavFile.set(wavHeader, 0);
+      wavFile.set(pcmBytes, wavHeader.length);
+      
+      // Convert to base64 for FileSystem
+      let binary = '';
+      for (let i = 0; i < wavFile.length; i++) {
+        binary += String.fromCharCode(wavFile[i]);
+      }
+      const wavBase64 = btoa(binary);
+      
+      const uri = `${FileSystem.cacheDirectory}ai_response_${Date.now()}.wav`;
+      await FileSystem.writeAsStringAsync(uri, wavBase64, { encoding: 'base64' });
+
+      // Create sound object
+      const { sound } = await Audio.Sound.createAsync(
+        { uri }, 
+        { 
+          shouldPlay: false,  // Don't auto-play yet
+          volume: 1.0,
+          progressUpdateIntervalMillis: 100,
+        }
+      );
+      
+      currentSoundRef.current = sound;
+
+      // Set up playback status listener
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded) {
+          if (status.didJustFinish) {
+            console.log("✓ Audio chunk finished");
+            sound.unloadAsync().catch(() => {});
+            currentSoundRef.current = null;
+            // Wait a tiny bit before playing next to avoid gaps
+            setTimeout(() => playNext(), 50);
+          } else if (status.isPlaying) {
+            // Audio is playing normally
+          }
+        } else if (status.error) {
+          console.error("Audio playback error:", status.error);
+          sound.unloadAsync().catch(() => {});
+          currentSoundRef.current = null;
+          playNext();
+        }
+      });
+
+      // Now play the sound
+      await sound.playAsync();
+      
+    } catch (e) {
+      console.error("Playback error:", e);
+      if (currentSoundRef.current) {
+        await currentSoundRef.current.unloadAsync().catch(() => {});
+        currentSoundRef.current = null;
+      }
+      // Continue to next chunk even on error
+      setTimeout(() => playNext(), 50);
+    }
+  };
+
+  // Create WAV header as Uint8Array with proper parameters
+  const createWavHeader = (
+    dataLength: number, 
+    sampleRate: number, 
+    numChannels: number = 1, 
+    bitsPerSample: number = 16
+  ): Uint8Array => {
+    const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+    const blockAlign = numChannels * (bitsPerSample / 8);
+    const fileSize = 36 + dataLength;
+    
+    const buffer = new ArrayBuffer(44);
+    const view = new DataView(buffer);
+
+    const writeString = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    };
+
+    // RIFF header
+    writeString(0, 'RIFF');
+    view.setUint32(4, fileSize, true);
+    writeString(8, 'WAVE');
+    
+    // fmt chunk
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);              // Subchunk1Size (16 for PCM)
+    view.setUint16(20, 1, true);               // AudioFormat (1 for PCM)
+    view.setUint16(22, numChannels, true);     // NumChannels
+    view.setUint32(24, sampleRate, true);      // SampleRate
+    view.setUint32(28, byteRate, true);        // ByteRate
+    view.setUint16(32, blockAlign, true);      // BlockAlign
+    view.setUint16(34, bitsPerSample, true);   // BitsPerSample
+    
+    // data chunk
+    writeString(36, 'data');
+    view.setUint32(40, dataLength, true);
+
+    return new Uint8Array(buffer);
+  };
+
+  // --- CLEANUP ---
+  const cleanupSession = () => {
+    // Stop the video loop
+    isVideoActive.current = false;
+    
+    if (ws.current) { ws.current.close(); ws.current = null; }
+    if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
+    
+    // Remove videoIntervalRef logic since we are using the recursive loop now
+    // if (videoIntervalRef.current) clearInterval(videoIntervalRef.current); 
+    
+    if (feedbackNudgeRef.current) clearInterval(feedbackNudgeRef.current);
+    if (recordingRef.current) { 
+      recordingRef.current.stopAndUnloadAsync().catch(() => {}); 
+      recordingRef.current = null;
+    }
+    if (currentSoundRef.current) { 
+      currentSoundRef.current.unloadAsync().catch(() => {}); 
+      currentSoundRef.current = null;
+    }
+  };
+
+  const endSession = () => {
+    cleanupSession();
+    router.back();
+  };
+
+  // --- RENDER ---
+  if (!cameraPermission?.granted || !micPermission?.granted) {
     return (
-      <View className="flex-1 bg-black items-center justify-center p-6">
-        <Ionicons name="lock-closed" size={64} color="#F6F000" className="mb-6" />
-        <Text style={{ fontFamily: fontFamily.bold }} className="text-white text-xl text-center mb-4">Permissions Required</Text>
-        <Text style={{ fontFamily: fontFamily.regular }} className="text-gray-400 text-center mb-8">
-            AI Coach needs camera and microphone access to see and hear you during the session.
-        </Text>
-        <TouchableOpacity
-          onPress={() => { requestCameraPermission(); requestMicPermission(); }}
-          className="bg-primary px-8 py-4 rounded-full"
-        >
-          <Text style={{ fontFamily: fontFamily.bold }} className="text-black text-base">Grant Permissions</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.back()} className="mt-6">
-            <Text style={{ fontFamily: fontFamily.medium }} className="text-gray-500">Go Back</Text>
+      <View style={styles.center}>
+        <Text style={{color:'white'}}>Permissions Required</Text>
+        <TouchableOpacity onPress={() => {requestCameraPermission(); requestMicPermission();}} style={styles.btn}>
+           <Text>Grant Access</Text>
         </TouchableOpacity>
       </View>
     );
@@ -359,97 +683,48 @@ export default function AICoachScreen() {
 
   return (
     <View style={styles.container}>
-      <CameraView ref={cameraRef} style={styles.camera} facing="front" />
-
-      {/* Dark overlay for camera to make text readable */}
+      {isComponentsReady && (
+        <CameraView 
+          ref={cameraRef} 
+          style={StyleSheet.absoluteFill} 
+          facing="front" 
+          mute={true} 
+        />
+      )}
+      
       <View style={styles.darkOverlay} />
 
       <SafeAreaView style={styles.overlay}>
-        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={28} color="white" />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>AI Coach · {exerciseName}</Text>
-            <View style={styles.liveIndicatorContainer}>
-               <View style={styles.redDot} />
-               <Text style={styles.liveText}>LIVE SESSION</Text>
+            <TouchableOpacity onPress={endSession} style={styles.backBtn}>
+                <Ionicons name="chevron-back" size={28} color="white" />
+            </TouchableOpacity>
+            
+            <View style={{alignItems:'center'}}>
+                <Text style={styles.title}>{exerciseName || "AI Coach"}</Text>
+                <Text style={{color: connectionStatus==='connected' ? '#4CAF50':'#FFC107', fontSize:12, fontWeight:'bold'}}>
+                    {connectionStatus === 'connected' ? "● LIVE" : `● ${connectionStatus.toUpperCase()}`}
+                </Text>
             </View>
-          </View>
-          <View style={styles.timerContainer}>
-            <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
-          </View>
+            <View style={{width: 40}} />
         </View>
 
-        {/* Floating Correction Card */}
-        {formCorrection && (
-          <View style={styles.correctionCardContainer}>
-            <BlurView intensity={80} tint="dark" style={styles.correctionCard}>
-                <View style={styles.correctionHeader}>
-                    <Ionicons name="warning" size={18} color="#F6F000" />
-                    <Text style={styles.correctionTitle}>FORM CORRECTION</Text>
-                </View>
-                <Text style={styles.correctionText}>{formCorrection}</Text>
-            </BlurView>
-          </View>
-        )}
-
-        {/* Coaching status and Waveform */}
-        <View style={styles.coachingStatusContainer}>
-            <View style={styles.waveformContainer}>
-                {[1, 2, 3, 4, 5].map((i) => (
-                    <Animated.View
-                        key={i}
-                        style={[
-                            styles.waveformBar,
-                            {
-                                height: waveformAnim.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: isConnected && !isMuted && !isPaused ? [10, 30 + (i * 5) % 20] : [10, 10]
-                                }),
-                                opacity: isConnected ? 1 : 0.3
-                            }
-                        ]}
-                    />
-                ))}
-            </View>
-            <Text style={styles.coachingStatusText}>
-                {isConnected ? (isMuted ? "MUTED" : "LISTENING & WATCHING...") : "CONNECTING..."}
+        <BlurView intensity={30} style={styles.correction}>
+            <Ionicons name="pulse" size={24} color={connectionStatus==='connected' ? "#4CAF50" : "white"} />
+            <Text style={styles.correctionText}>
+                {formCorrection || (connectionStatus === 'connected' ? "Listening & Watching..." : "Connecting...")}
             </Text>
-        </View>
+        </BlurView>
 
-        {/* Conversation Log (Simplified) */}
-        <View style={styles.logContainer}>
-            <Text style={styles.logText} numberOfLines={3}>{aiText}</Text>
-        </View>
-
-        {/* Bottom Controls */}
-        <View style={styles.bottomControls}>
-          <TouchableOpacity
-            style={styles.controlButtonSmall}
-            onPress={() => setIsMuted(!isMuted)}
-          >
-            <Ionicons name={isMuted ? "mic-off" : "mic"} size={24} color="white" />
-            <Text style={styles.controlButtonText}>MUTE</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.pauseButton, isPaused && styles.pausedActive]}
-            onPress={() => setIsPaused(!isPaused)}
-          >
-            <Ionicons name={isPaused ? "play" : "pause"} size={32} color="black" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.controlButtonSmall}
-            onPress={() => router.back()}
-          >
-            <View style={styles.endButtonCircle}>
-                <Ionicons name="power" size={24} color="white" />
+        <View style={styles.footer}>
+            <View style={styles.controls}>
+                <TouchableOpacity onPress={() => setIsMuted(!isMuted)} style={[styles.controlBtn, isMuted && {backgroundColor:'#FF3B30'}]}>
+                    <Ionicons name={isMuted ? "mic-off" : "mic"} size={28} color={isMuted ? "white" : "black"} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={endSession} style={[styles.controlBtn, {backgroundColor:'#FF3B30'}]}>
+                    <Ionicons name="stop" size={28} color="white" />
+                </TouchableOpacity>
             </View>
-            <Text style={styles.controlButtonText}>END SESSION</Text>
-          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </View>
@@ -457,178 +732,17 @@ export default function AICoachScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'black',
-  },
-  camera: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  darkOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  overlay: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 40 : 10,
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitleContainer: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  headerTitle: {
-    color: 'white',
-    fontFamily: fontFamily.bold,
-    fontSize: 18,
-  },
-  liveIndicatorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  redDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF3B30',
-    marginRight: 6,
-  },
-  liveText: {
-    color: 'white',
-    fontSize: 12,
-    fontFamily: fontFamily.bold,
-    letterSpacing: 1,
-  },
-  timerContainer: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  timerText: {
-    color: 'white',
-    fontFamily: fontFamily.mono || 'Courier',
-    fontSize: 16,
-  },
-  correctionCardContainer: {
-    paddingHorizontal: 20,
-    marginTop: 20,
-  },
-  correctionCard: {
-    borderRadius: 16,
-    padding: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(246, 240, 0, 0.3)',
-  },
-  correctionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  correctionTitle: {
-    color: '#F6F000',
-    fontFamily: fontFamily.bold,
-    fontSize: 14,
-    marginLeft: 8,
-  },
-  correctionText: {
-    color: 'white',
-    fontFamily: fontFamily.medium,
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  coachingStatusContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 'auto',
-    marginBottom: 20,
-  },
-  waveformContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 40,
-    marginBottom: 10,
-  },
-  waveformBar: {
-    width: 4,
-    backgroundColor: '#F6F000',
-    marginHorizontal: 2,
-    borderRadius: 2,
-  },
-  coachingStatusText: {
-    color: 'white',
-    fontFamily: fontFamily.bold,
-    fontSize: 12,
-    letterSpacing: 2,
-    opacity: 0.8,
-  },
-  logContainer: {
-    paddingHorizontal: 30,
-    marginBottom: 30,
-    minHeight: 60,
-  },
-  logText: {
-    color: 'white',
-    fontFamily: fontFamily.medium,
-    fontSize: 16,
-    textAlign: 'center',
-    opacity: 0.9,
-    lineHeight: 24,
-  },
-  bottomControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-    paddingBottom: 40,
-  },
-  controlButtonSmall: {
-    alignItems: 'center',
-    width: 80,
-  },
-  controlButtonText: {
-    color: 'white',
-    fontSize: 10,
-    fontFamily: fontFamily.bold,
-    marginTop: 8,
-    opacity: 0.7,
-  },
-  pauseButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#F6F000',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#F6F000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  pausedActive: {
-    backgroundColor: '#FFFFFF',
-  },
-  endButtonCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FF3B30',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  container: { flex: 1, backgroundColor: 'black' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'black' },
+  darkOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  overlay: { flex: 1, justifyContent: 'space-between' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, alignItems: 'center', marginTop: 10 },
+  title: { color: 'white', fontSize: 20, fontWeight: 'bold' },
+  backBtn: { width: 40, height: 40, justifyContent: 'center' },
+  correction: { flexDirection: 'row', marginHorizontal: 20, padding: 20, borderRadius: 16, overflow: 'hidden', alignItems: 'center', gap: 12, backgroundColor: 'rgba(0,0,0,0.5)' },
+  correctionText: { color: 'white', fontSize: 16, flex: 1, fontWeight: '500' },
+  footer: { padding: 40, alignItems: 'center' },
+  controls: { flexDirection: 'row', gap: 40 },
+  controlBtn: { width: 70, height: 70, borderRadius: 35, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  btn: { backgroundColor: 'white', padding: 15, borderRadius: 25, marginTop: 20 },
 });
