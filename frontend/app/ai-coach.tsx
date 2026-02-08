@@ -19,7 +19,7 @@ import { BlurView } from 'expo-blur';
 // --- CONFIGURATION ---
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 const WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${GEMINI_API_KEY}`;
-const MODEL_NAME = "models/gemini-2.5-flash-native-audio-latest";
+const MODEL_NAME = "models/gemini-2.0-flash-exp";
 
 export default function AICoachScreen() {
   const router = useRouter();
@@ -108,17 +108,17 @@ export default function AICoachScreen() {
       const setupMessage = {
         setup: {
           model: MODEL_NAME,
-          generation_config: {
-            response_modalities: ["AUDIO"],
-            speech_config: {
-              voice_config: {
-                prebuilt_voice_config: {
-                  voice_name: "Puck" // Options: Puck, Charon, Kore, Fenrir, Aoede
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: "Puck" // Options: Puck, Charon, Kore, Fenrir, Aoede
                 }
               }
             }
           },
-          system_instruction: {
+          systemInstruction: {
             parts: [{
               text: `You are an AI fitness coach giving live feedback using VERY LOW-FPS camera snapshots.
 
@@ -207,12 +207,12 @@ BAD RESPONSES (FORBIDDEN):
           
           // Send initial message to trigger Gemini's introduction
           sendToGemini({
-            client_content: {
+            clientContent: {
               turns: [{
                 role: "user",
                 parts: [{ text: "Hello! I'm ready to start my workout. Please introduce yourself and let me know you're ready to provide form feedback." }]
               }],
-              turn_complete: true
+              turnComplete: true
             }
           });
         }
@@ -226,19 +226,11 @@ BAD RESPONSES (FORBIDDEN):
           // Check if this is the end of a turn
           const turnComplete = data.serverContent.turnComplete;
           
-          // Collect Audio Chunks
+          // Play Audio Chunks Immediately (Streaming)
           const audioPart = data.serverContent.modelTurn?.parts?.find((p:any) => p.inlineData);
           if (audioPart) {
             console.log("🔊 Received audio chunk");
-            audioChunksBuffer.current.push(audioPart.inlineData.data);
-          }
-          
-          // When turn is complete, concatenate and play all audio
-          if (turnComplete && audioChunksBuffer.current.length > 0) {
-            console.log("🎵 Turn complete, concatenating", audioChunksBuffer.current.length, "audio chunks");
-            const concatenatedAudio = concatenateAudioChunks(audioChunksBuffer.current);
-            queueAudio(concatenatedAudio);
-            audioChunksBuffer.current = []; // Clear buffer
+            queueAudio(audioPart.inlineData.data);
           }
           
           // Show Text
@@ -306,59 +298,27 @@ BAD RESPONSES (FORBIDDEN):
     console.log("Starting audio streaming...");
     recordChunk(); 
     if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
-    audioIntervalRef.current = setInterval(recordChunk, 3000); // 3 seconds for stability
+    audioIntervalRef.current = setInterval(recordChunk, 2000); // 2 seconds for better responsiveness
   };
 
   const recordChunk = async () => {
     if (ws.current?.readyState !== WebSocket.OPEN || isMuted) return;
 
     try {
-      // 1. Stop and send previous recording
+      let previousUri: string | null = null;
+
+      // 1. Stop previous recording
       if (recordingRef.current) {
         try {
-          const uri = recordingRef.current.getURI();
+          previousUri = recordingRef.current.getURI();
           await recordingRef.current.stopAndUnloadAsync();
           recordingRef.current = null;
-          
-          if (uri) {
-            // Read the WAV file as base64
-            const wavBase64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-            
-            // Decode WAV to get PCM data (skip 44-byte WAV header)
-            const wavBinary = atob(wavBase64);
-            const wavBytes = new Uint8Array(wavBinary.length);
-            for (let i = 0; i < wavBinary.length; i++) {
-              wavBytes[i] = wavBinary.charCodeAt(i);
-            }
-            
-            // Extract PCM data (skip 44-byte header)
-            const pcmBytes = wavBytes.slice(44);
-            
-            // Convert back to base64
-            let pcmBinary = '';
-            for (let i = 0; i < pcmBytes.length; i++) {
-              pcmBinary += String.fromCharCode(pcmBytes[i]);
-            }
-            const pcmBase64 = btoa(pcmBinary);
-            
-            // Send as PCM with sample rate specified in MIME type
-            sendToGemini({
-              realtime_input: {
-                media_chunks: [{
-                  mime_type: "audio/pcm;rate=16000",
-                  data: pcmBase64
-                }]
-              }
-            });
-            console.log("✓ Sent audio chunk:", pcmBase64.length, "bytes");
-          }
         } catch (stopError) {
           console.log("Error stopping recording:", stopError);
-          recordingRef.current = null;
         }
       }
 
-      // 2. Start new recording
+      // 2. Start new recording IMMEDIATELY to minimize gaps
       if (ws.current?.readyState === WebSocket.OPEN && !isMuted) {
         try {
           const { recording } = await Audio.Recording.createAsync({
@@ -384,6 +344,44 @@ BAD RESPONSES (FORBIDDEN):
           recordingRef.current = recording;
         } catch (startError) {
           console.log("Error starting recording:", startError);
+        }
+      }
+
+      // 3. Process and send the PREVIOUS recording (if any)
+      if (previousUri) {
+        try {
+          // Read the WAV file as base64
+          const wavBase64 = await FileSystem.readAsStringAsync(previousUri, { encoding: 'base64' });
+
+          // Decode WAV to get PCM data (skip 44-byte WAV header)
+          const wavBinary = atob(wavBase64);
+          const wavBytes = new Uint8Array(wavBinary.length);
+          for (let i = 0; i < wavBinary.length; i++) {
+            wavBytes[i] = wavBinary.charCodeAt(i);
+          }
+
+          // Extract PCM data (skip 44-byte header)
+          const pcmBytes = wavBytes.slice(44);
+
+          // Convert back to base64
+          let pcmBinary = '';
+          for (let i = 0; i < pcmBytes.length; i++) {
+            pcmBinary += String.fromCharCode(pcmBytes[i]);
+          }
+          const pcmBase64 = btoa(pcmBinary);
+
+          // Send as PCM with sample rate specified in MIME type
+          sendToGemini({
+            realtimeInput: {
+                mediaChunks: [{
+                mimeType: "audio/pcm;rate=16000",
+                data: pcmBase64
+                }]
+            }
+          });
+          console.log("✓ Sent audio chunk:", pcmBase64.length, "bytes");
+        } catch (processError) {
+          console.error("Error processing/sending audio chunk:", processError);
         }
       }
     } catch (e) {
@@ -420,8 +418,11 @@ BAD RESPONSES (FORBIDDEN):
       // 3. Send to Gemini immediately
       if (photo.base64) {
         sendToGemini({
-          realtime_input: {
-            media_chunks: [{ mime_type: "image/jpeg", data: photo.base64 }]
+          realtimeInput: {
+            mediaChunks: [{
+              mimeType: "image/jpeg",
+              data: photo.base64
+            }]
           }
         });
       }
@@ -454,12 +455,12 @@ BAD RESPONSES (FORBIDDEN):
       if (timeSinceLastResponse > 15000 && ws.current?.readyState === WebSocket.OPEN) {
         console.log("⏰ Nudging for feedback...");
         sendToGemini({
-          client_content: {
+          clientContent: {
             turns: [{
               role: "user",
               parts: [{ text: "How's my form looking? Only answer what you can clearly see. Now what color tshirt am I wearing ? " }]
             }],
-            turn_complete: true
+            turnComplete: true
           }
         });
       }
@@ -689,6 +690,7 @@ BAD RESPONSES (FORBIDDEN):
           style={StyleSheet.absoluteFill} 
           facing="front" 
           mute={true} 
+          flash="off"
         />
       )}
       
