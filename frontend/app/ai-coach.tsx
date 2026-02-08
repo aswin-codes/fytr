@@ -65,7 +65,6 @@ export default function AICoachScreen() {
     }
     return () => {
         if (interval) clearInterval(interval);
-        // We don't call stopRecording here because stopSession handles it or it might conflict
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, isMuted, isPaused]);
@@ -144,15 +143,18 @@ export default function AICoachScreen() {
             }
         };
 
-        ws.current.onerror = (e) => {
-          console.error("Gemini WebSocket error:", e);
-          setAiText("Connection error. Please check your API key.");
+        ws.current.onerror = (e: any) => {
+          console.error("Gemini WebSocket error:", e.message || e);
+          setAiText("Connection error. Ensure your API key is correct and has access to Gemini 2.0 Flash.");
         };
 
         ws.current.onclose = (event) => {
           console.log(`Gemini WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`);
           setIsConnected(false);
           stopFrameStreaming();
+          if (event.code !== 1000) {
+              setAiText(`Connection lost (Code ${event.code}). Please try again.`);
+          }
         };
     } catch (error) {
         console.error("Failed to connect to Gemini:", error);
@@ -163,7 +165,7 @@ export default function AICoachScreen() {
   const startFrameStreaming = () => {
       // Stream a frame every 2 seconds for analysis
       frameTimerRef.current = setInterval(async () => {
-          if (cameraRef.current && ws.current?.readyState === WebSocket.OPEN) {
+          if (cameraRef.current && ws.current?.readyState === WebSocket.OPEN && !isPaused) {
               try {
                   const photo = await cameraRef.current.takePictureAsync({
                       quality: 0.3,
@@ -171,7 +173,7 @@ export default function AICoachScreen() {
                       scale: 0.5,
                   });
 
-                  if (photo && photo.base64) {
+                  if (photo && photo.base64 && ws.current?.readyState === WebSocket.OPEN) {
                       const frameMessage = {
                           realtime_input: {
                               media_chunks: [{
@@ -237,12 +239,12 @@ export default function AICoachScreen() {
               Animated.timing(waveformAnim, {
                   toValue: 1,
                   duration: 500,
-                  useNativeDriver: true,
+                  useNativeDriver: false,
               }),
               Animated.timing(waveformAnim, {
                   toValue: 0,
                   duration: 500,
-                  useNativeDriver: true,
+                  useNativeDriver: false,
               })
           ])
       ).start();
@@ -292,13 +294,15 @@ export default function AICoachScreen() {
                   realtime_input: {
                       media_chunks: [{
                           // Gemini Live prefers audio/pcm;rate=16000 but we send what expo-av provides
-                          // audio/mp4 might not be supported by Gemini Live BiDiSession, but we try anyway
+                          // audio/mp4 might not be supported by Gemini Live BiDiSession
                           mime_type: "audio/mp4",
                           data: base64Audio
                       }]
                   }
               };
-              ws.current.send(JSON.stringify(audioMessage));
+              if (ws.current?.readyState === WebSocket.OPEN) {
+                ws.current.send(JSON.stringify(audioMessage));
+              }
           }
 
           recordingRef.current = null;
