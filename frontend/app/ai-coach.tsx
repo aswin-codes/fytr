@@ -90,10 +90,21 @@ export default function AICoachScreen() {
               model: "models/gemini-2.0-flash-exp",
               generation_config: {
                 response_modalities: ["AUDIO"],
+                speech_config: {
+                  voice_config: {
+                    prebuilt_voice_config: {
+                      voice_name: "Aoede" // Encouraging voice
+                    }
+                  }
+                }
               },
               system_instruction: {
                 parts: [{
-                  text: `You are a professional gym coach. You are helping a user with ${exerciseName}. Observe their form via the camera and listen to their questions. Provide concise, encouraging, and corrective feedback in real-time. Speak your responses.`
+                  text: `You are a professional gym coach. You are helping a user with ${exerciseName}.
+                  Observe their form via the camera and listen to their questions.
+                  IMPORTANT: You must be proactive. If you see a mistake in their form, speak up immediately.
+                  Don't wait for them to talk to you. Keep your feedback concise, encouraging, and highly corrective.
+                  This is a live session, so act as if you are standing right next to them.`
                 }]
               }
             }
@@ -395,7 +406,7 @@ export default function AICoachScreen() {
                             {
                                 height: waveformAnim.interpolate({
                                     inputRange: [0, 1],
-                                    outputRange: [10, 30 + (i * 5) % 20]
+                                    outputRange: isConnected && !isMuted && !isPaused ? [10, 30 + (i * 5) % 20] : [10, 10]
                                 }),
                                 opacity: isConnected ? 1 : 0.3
                             }
@@ -404,7 +415,7 @@ export default function AICoachScreen() {
                 ))}
             </View>
             <Text style={styles.coachingStatusText}>
-                {isConnected ? "COACHING..." : "CONNECTING..."}
+                {isConnected ? (isMuted ? "MUTED" : "LISTENING & WATCHING...") : "CONNECTING..."}
             </Text>
         </View>
 
