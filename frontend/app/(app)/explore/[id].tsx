@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,11 +7,11 @@ import {
   Image,
   TouchableOpacity,
   useColorScheme,
-} from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
-import { getExerciseById } from '../../../src/db/exerciseRepo';
-import { Exercise } from '../../../src/db/exerciseRepo';
-import { Ionicons } from '@expo/vector-icons';
+} from "react-native";
+import { useLocalSearchParams, router } from "expo-router";
+import { getExerciseById } from "../../../src/db/exerciseRepo";
+import { Exercise } from "../../../src/db/exerciseRepo";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function ExerciseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -19,7 +19,7 @@ export default function ExerciseDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const isDark = colorScheme === "dark";
 
   useEffect(() => {
     loadExercise();
@@ -42,7 +42,7 @@ export default function ExerciseDetailScreen() {
       const data = await getExerciseById(id);
       setExercise(data);
     } catch (error) {
-      console.error('Failed to load exercise:', error);
+      console.error("Failed to load exercise:", error);
     } finally {
       setLoading(false);
     }
@@ -66,8 +66,13 @@ export default function ExerciseDetailScreen() {
         <Text className="mb-6 text-center text-textSecondary-light dark:text-textSecondary-dark">
           This exercise may have been removed or doesn't exist.
         </Text>
-        <TouchableOpacity onPress={() => router.back()} className="rounded-xl bg-primary px-6 py-3">
-          <Text className="text-base font-semibold text-textPrimary-light">Go Back</Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="rounded-xl bg-primary px-6 py-3"
+        >
+          <Text className="text-base font-semibold text-textPrimary-light">
+            Go Back
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -80,8 +85,13 @@ export default function ExerciseDetailScreen() {
         <View className=" items-center justify-between">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="h-10 w-10 items-center justify-center rounded-full bg-background-light dark:bg-background-dark">
-            <Ionicons name="arrow-back" size={24} color={isDark ? '#FFFFFF' : '#0F0F0F'} />
+            className="h-10 w-10 items-center justify-center rounded-full bg-background-light dark:bg-background-dark"
+          >
+            <Ionicons
+              name="arrow-back"
+              size={24}
+              color={isDark ? "#FFFFFF" : "#0F0F0F"}
+            />
           </TouchableOpacity>
         </View>
         <Text className="text-2xl font-bold text-textPrimary-light dark:text-textPrimary-dark">
@@ -114,7 +124,9 @@ export default function ExerciseDetailScreen() {
                   <View
                     key={index}
                     className={`h-2 w-2 rounded-full transition-all ${
-                      index === activeImageIndex ? 'w-6 bg-primary' : 'bg-white/50 dark:bg-gray-600'
+                      index === activeImageIndex
+                        ? "w-6 bg-primary"
+                        : "bg-white/50 dark:bg-gray-600"
                     }`}
                   />
                 ))}
@@ -137,16 +149,19 @@ export default function ExerciseDetailScreen() {
             onPress={() => router.push(`/(app)/ai`)}
             className="flex-row items-center justify-between rounded-2xl bg-primary p-4 shadow-lg"
             style={{
-              shadowColor: '#F6F000',
+              shadowColor: "#F6F000",
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.3,
               shadowRadius: 8,
               elevation: 8,
-            }}>
+            }}
+          >
             <View className="flex-1">
               <View className="mb-1 flex-row items-center gap-2">
                 <Ionicons name="sparkles" size={20} color="#0F0F0F" />
-                <Text className="text-lg font-bold text-textPrimary-light">AI Form Analysis</Text>
+                <Text className="text-lg font-bold text-textPrimary-light">
+                  AI Form Analysis
+                </Text>
               </View>
               <Text className="text-sm text-textSecondary-light">
                 Get real-time feedback on your technique
@@ -156,13 +171,48 @@ export default function ExerciseDetailScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* AI Coach CTA */}
+        <View className="mx-4 mb-2">
+          <TouchableOpacity
+            onPress={() =>
+              router.push({
+                pathname: "/ai-coach",
+                params: { exerciseName: exercise.name },
+              })
+            }
+            className="flex-row items-center justify-between rounded-2xl bg-black p-4 shadow-lg dark:bg-zinc-900"
+            style={{
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+            }}
+          >
+            <View className="flex-1">
+              <View className="mb-1 flex-row items-center gap-2">
+                <Ionicons name="mic" size={20} color="#F6F000" />
+                <Text className="text-lg font-bold text-white">AI Coach</Text>
+              </View>
+              <Text className="text-sm text-gray-400">
+                Interactive real-time coaching session
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#F6F000" />
+          </TouchableOpacity>
+        </View>
+
         {/* Details Section */}
         <View className="p-4">
           {/* Quick Info Cards */}
           <View className="mb-6 flex-row flex-wrap gap-2">
             {exercise.level && (
               <View className="flex-row items-center gap-2 rounded-xl border border-border-light bg-surface-light px-4 py-2 dark:border-border-dark dark:bg-surface-dark">
-                <Ionicons name="bar-chart" size={16} color={isDark ? '#C7C7CC' : '#6B7280'} />
+                <Ionicons
+                  name="bar-chart"
+                  size={16}
+                  color={isDark ? "#C7C7CC" : "#6B7280"}
+                />
                 <View>
                   <Text className="text-xs text-textMuted-light dark:text-textMuted-dark">
                     Level
@@ -176,7 +226,11 @@ export default function ExerciseDetailScreen() {
 
             {exercise.equipment && (
               <View className="flex-row items-center gap-2 rounded-xl border border-border-light bg-surface-light px-4 py-2 dark:border-border-dark dark:bg-surface-dark">
-                <Ionicons name="barbell" size={16} color={isDark ? '#C7C7CC' : '#6B7280'} />
+                <Ionicons
+                  name="barbell"
+                  size={16}
+                  color={isDark ? "#C7C7CC" : "#6B7280"}
+                />
                 <View>
                   <Text className="text-xs text-textMuted-light dark:text-textMuted-dark">
                     Equipment
@@ -190,7 +244,11 @@ export default function ExerciseDetailScreen() {
 
             {exercise.category && (
               <View className="flex-row items-center gap-2 rounded-xl border border-border-light bg-surface-light px-4 py-2 dark:border-border-dark dark:bg-surface-dark">
-                <Ionicons name="fitness" size={16} color={isDark ? '#C7C7CC' : '#6B7280'} />
+                <Ionicons
+                  name="fitness"
+                  size={16}
+                  color={isDark ? "#C7C7CC" : "#6B7280"}
+                />
                 <View>
                   <Text className="text-xs text-textMuted-light dark:text-textMuted-dark">
                     Category
@@ -204,7 +262,11 @@ export default function ExerciseDetailScreen() {
 
             {exercise.force && (
               <View className="flex-row items-center gap-2 rounded-xl border border-border-light bg-surface-light px-4 py-2 dark:border-border-dark dark:bg-surface-dark">
-                <Ionicons name="arrow-forward" size={16} color={isDark ? '#C7C7CC' : '#6B7280'} />
+                <Ionicons
+                  name="arrow-forward"
+                  size={16}
+                  color={isDark ? "#C7C7CC" : "#6B7280"}
+                />
                 <View>
                   <Text className="text-xs text-textMuted-light dark:text-textMuted-dark">
                     Force
@@ -218,7 +280,11 @@ export default function ExerciseDetailScreen() {
 
             {exercise.mechanic && (
               <View className="flex-row items-center gap-2 rounded-xl border border-border-light bg-surface-light px-4 py-2 dark:border-border-dark dark:bg-surface-dark">
-                <Ionicons name="git-network" size={16} color={isDark ? '#C7C7CC' : '#6B7280'} />
+                <Ionicons
+                  name="git-network"
+                  size={16}
+                  color={isDark ? "#C7C7CC" : "#6B7280"}
+                />
                 <View>
                   <Text className="text-xs text-textMuted-light dark:text-textMuted-dark">
                     Mechanic
@@ -233,49 +299,56 @@ export default function ExerciseDetailScreen() {
 
           {/* Muscles Worked Section */}
           {((exercise.primary_muscles && exercise.primary_muscles.length > 0) ||
-            (exercise.secondary_muscles && exercise.secondary_muscles.length > 0)) && (
+            (exercise.secondary_muscles &&
+              exercise.secondary_muscles.length > 0)) && (
             <View className="mb-4 rounded-2xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark">
               <Text className="mb-4 text-lg font-bold text-textPrimary-light dark:text-textPrimary-dark">
                 Muscles Worked
               </Text>
 
               {/* Primary Muscles */}
-              {exercise.primary_muscles && exercise.primary_muscles.length > 0 && (
-                <View className="mb-3">
-                  <Text className="mb-2 text-xs font-semibold uppercase tracking-wider text-textMuted-light dark:text-textMuted-dark">
-                    Primary
-                  </Text>
-                  <View className="flex-row flex-wrap gap-2">
-                    {exercise.primary_muscles.map((muscle, index) => (
-                      <View key={index} className="rounded-full bg-primary px-4 py-2">
-                        <Text className="text-sm font-semibold capitalize text-textPrimary-light">
-                          {muscle}
-                        </Text>
-                      </View>
-                    ))}
+              {exercise.primary_muscles &&
+                exercise.primary_muscles.length > 0 && (
+                  <View className="mb-3">
+                    <Text className="mb-2 text-xs font-semibold uppercase tracking-wider text-textMuted-light dark:text-textMuted-dark">
+                      Primary
+                    </Text>
+                    <View className="flex-row flex-wrap gap-2">
+                      {exercise.primary_muscles.map((muscle, index) => (
+                        <View
+                          key={index}
+                          className="rounded-full bg-primary px-4 py-2"
+                        >
+                          <Text className="text-sm font-semibold capitalize text-textPrimary-light">
+                            {muscle}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
-                </View>
-              )}
+                )}
 
               {/* Secondary Muscles */}
-              {exercise.secondary_muscles && exercise.secondary_muscles.length > 0 && (
-                <View>
-                  <Text className="mb-2 text-xs font-semibold uppercase tracking-wider text-textMuted-light dark:text-textMuted-dark">
-                    Secondary
-                  </Text>
-                  <View className="flex-row flex-wrap gap-2">
-                    {exercise.secondary_muscles.map((muscle, index) => (
-                      <View
-                        key={index}
-                        className="rounded-full border border-border-light bg-background-light px-4 py-2 dark:border-border-dark dark:bg-background-dark">
-                        <Text className="text-sm capitalize text-textSecondary-light dark:text-textSecondary-dark">
-                          {muscle}
-                        </Text>
-                      </View>
-                    ))}
+              {exercise.secondary_muscles &&
+                exercise.secondary_muscles.length > 0 && (
+                  <View>
+                    <Text className="mb-2 text-xs font-semibold uppercase tracking-wider text-textMuted-light dark:text-textMuted-dark">
+                      Secondary
+                    </Text>
+                    <View className="flex-row flex-wrap gap-2">
+                      {exercise.secondary_muscles.map((muscle, index) => (
+                        <View
+                          key={index}
+                          className="rounded-full border border-border-light bg-background-light px-4 py-2 dark:border-border-dark dark:bg-background-dark"
+                        >
+                          <Text className="text-sm capitalize text-textSecondary-light dark:text-textSecondary-dark">
+                            {muscle}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
-                </View>
-              )}
+                )}
             </View>
           )}
 
@@ -286,17 +359,18 @@ export default function ExerciseDetailScreen() {
                 How to Perform
               </Text>
               <View className="flex gap-2">
-              {exercise.instructions.map((instruction, index) => (
-                <View key={index} className="  flex-row last:mb-0">
-                  <View className="mr-3 mt-0.5 h-8 w-8 items-center justify-center rounded-full bg-primary">
-                    <Text className="text-sm font-bold text-textPrimary-light">{index + 1}</Text>
+                {exercise.instructions.map((instruction, index) => (
+                  <View key={index} className="  flex-row last:mb-0">
+                    <View className="mr-3 mt-0.5 h-8 w-8 items-center justify-center rounded-full bg-primary">
+                      <Text className="text-sm font-bold text-textPrimary-light">
+                        {index + 1}
+                      </Text>
+                    </View>
+                    <Text className="flex-1 text-sm leading-6 text-textSecondary-light dark:text-textSecondary-dark">
+                      {instruction.trim()}
+                    </Text>
                   </View>
-                  <Text className="flex-1 text-sm leading-6 text-textSecondary-light dark:text-textSecondary-dark">
-                    {instruction.trim()}
-                  </Text>
-                </View>
-                
-              ))}
+                ))}
               </View>
             </View>
           )}
@@ -318,8 +392,6 @@ export default function ExerciseDetailScreen() {
             </View>
           </View>*/}
         </View>
-
-
 
         {/* Bottom Spacing */}
         <View className="h-8" />
