@@ -80,7 +80,14 @@ export default function AICoachScreen() {
     const url = `${GEMINI_WS_URL}?key=${apiKey}`;
 
     try {
-        ws.current = new WebSocket(url);
+        // React Native WebSocket supports additional options like headers
+        const options: any = Platform.OS !== 'web' ? {
+            headers: {
+                'origin': 'http://localhost',
+            }
+        } : undefined;
+
+        ws.current = new WebSocket(url, undefined, options);
 
         ws.current.onopen = () => {
           console.log("Connected to Gemini Live API");
@@ -158,8 +165,8 @@ export default function AICoachScreen() {
         };
 
         ws.current.onerror = (e: any) => {
-          console.error("Gemini WebSocket error:", e.message || e);
-          setAiText("Connection error. Ensure your API key is correct and has access to Gemini 2.0 Flash.");
+          console.error("Gemini WebSocket error:", JSON.stringify(e));
+          setAiText("Connection error. The Gemini Live API returned a 404 or connection failed.");
         };
 
         ws.current.onclose = (event) => {
@@ -167,8 +174,11 @@ export default function AICoachScreen() {
           setIsConnected(false);
           setIsSetupComplete(false);
           stopFrameStreaming();
-          if (event.code !== 1000) {
-              setAiText(`Connection lost (Code ${event.code}). Please try again.`);
+
+          if (event.code === 1006 || event.reason.includes('404')) {
+              setAiText("Handshake failed (404). Ensure 'Generative Language API' is enabled in Google Cloud Console and your project is US-based.");
+          } else if (event.code !== 1000) {
+              setAiText(`Connection lost (Code ${event.code}). Reason: ${event.reason || 'Unknown'}`);
           }
         };
     } catch (error) {
