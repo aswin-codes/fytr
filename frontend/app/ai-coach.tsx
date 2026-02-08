@@ -19,7 +19,7 @@ import * as FileSystem from 'expo-file-system';
 import { BlurView } from 'expo-blur';
 
 // Constants for Gemini Multimodal Live API
-const GEMINI_WS_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BiDiSession";
+const GEMINI_WS_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
 
 export default function AICoachScreen() {
   const router = useRouter();
@@ -97,17 +97,17 @@ export default function AICoachScreen() {
           const setupMessage = {
             setup: {
               model: "models/gemini-2.0-flash-exp",
-              generation_config: {
-                response_modalities: ["AUDIO"],
-                speech_config: {
-                  voice_config: {
-                    prebuilt_voice_config: {
-                      voice_name: "Aoede" // Encouraging voice
+              generationConfig: {
+                responseModalities: ["AUDIO"],
+                speechConfig: {
+                  voiceConfig: {
+                    prebuiltVoiceConfig: {
+                      voiceName: "Aoede" // Encouraging voice
                     }
                   }
                 }
               },
-              system_instruction: {
+              systemInstruction: {
                 parts: [{
                   text: `You are a professional gym coach. You are helping a user with ${exerciseName}.
                   Observe their form via the camera and listen to their questions.
@@ -200,11 +200,11 @@ export default function AICoachScreen() {
 
                   if (photo && photo.base64 && ws.current?.readyState === WebSocket.OPEN) {
                       const frameMessage = {
-                          realtime_input: {
-                              media_chunks: [{
-                                  mime_type: "image/jpeg",
+                          realtimeInput: {
+                              video: {
+                                  mimeType: "image/jpeg",
                                   data: photo.base64
-                              }]
+                              }
                           }
                       };
                       ws.current.send(JSON.stringify(frameMessage));
@@ -316,13 +316,12 @@ export default function AICoachScreen() {
               });
 
               const audioMessage = {
-                  realtime_input: {
-                      media_chunks: [{
+                  realtimeInput: {
+                      audio: {
                           // Gemini Live prefers audio/pcm;rate=16000 but we send what expo-av provides
-                          // audio/mp4 might not be supported by Gemini Live BiDiSession
-                          mime_type: "audio/mp4",
+                          mimeType: "audio/mp4",
                           data: base64Audio
-                      }]
+                      }
                   }
               };
               if (ws.current?.readyState === WebSocket.OPEN) {
