@@ -8,14 +8,15 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  Animated,
 } from 'react-native';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { fontFamily } from '@/src/theme/fontFamily';
-import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
+import { BlurView } from 'expo-blur';
 
 // Constants for Gemini Multimodal Live API
 const GEMINI_WS_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BiDiSession";
@@ -27,9 +28,11 @@ export default function AICoachScreen() {
   const [micPermission, requestMicPermission] = useMicrophonePermissions();
 
   const [isConnected, setIsConnected] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [timeLeft, setTimeLeft] = useState(180); // 3 minutes
   const [aiText, setAiText] = useState("Connecting to AI Coach...");
+  const [formCorrection, setFormCorrection] = useState<string | null>(null);
 
   const ws = useRef<WebSocket | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -37,15 +40,35 @@ export default function AICoachScreen() {
   const cameraRef = useRef<CameraView>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const waveformAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    startWaveformAnimation();
     connectToGemini();
     startTimer();
 
     return () => {
       stopSession();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Continuous recording logic when not muted
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isConnected && !isMuted && !isPaused) {
+        startRecording();
+        interval = setInterval(async () => {
+            await stopRecording();
+            await startRecording();
+        }, 4000);
+    }
+    return () => {
+        if (interval) clearInterval(interval);
+        // We don't call stopRecording here because stopSession handles it or it might conflict
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, isMuted, isPaused]);
 
   const connectToGemini = () => {
     const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
@@ -67,7 +90,7 @@ export default function AICoachScreen() {
             setup: {
               model: "models/gemini-2.0-flash-exp",
               generation_config: {
-                response_modalities: ["audio", "text"],
+                response_modalities: ["AUDIO"],
               },
               system_instruction: {
                 parts: [{
@@ -87,17 +110,34 @@ export default function AICoachScreen() {
             try {
                 const data = JSON.parse(e.data);
 
+                // Handle setup complete
+                if (data.setupComplete) {
+                    console.log("Gemini Setup Complete");
+                    return;
+                }
+
                 if (data.serverContent?.modelTurn?.parts) {
                     const parts = data.serverContent.modelTurn.parts;
                     for (const part of parts) {
                         if (part.text) {
                             setAiText(part.text);
+                            // Simple logic to show form corrections in the floating card
+                            if (part.text.toLowerCase().includes('correction') ||
+                                part.text.toLowerCase().includes('form') ||
+                                part.text.length < 60) {
+                                setFormCorrection(part.text);
+                            }
                         }
                         if (part.inlineData) {
                             // Audio data in base64
                             playAudioResponse(part.inlineData.data);
                         }
                     }
+                }
+
+                // Also handle simple serverContent if it's just audio/text
+                if (data.serverContent?.turnComplete) {
+                    console.log("Turn complete");
                 }
             } catch (err) {
                 console.error("Error parsing Gemini message:", err);
@@ -109,8 +149,8 @@ export default function AICoachScreen() {
           setAiText("Connection error. Please check your API key.");
         };
 
-        ws.current.onclose = () => {
-          console.log("Gemini WebSocket closed");
+        ws.current.onclose = (event) => {
+          console.log(`Gemini WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`);
           setIsConnected(false);
           stopFrameStreaming();
         };
@@ -161,9 +201,9 @@ export default function AICoachScreen() {
           }
 
           // In Expo, to play base64, we write to a temp file
-          const fileUri = FileSystem.cacheDirectory + 'ai_response.mp3';
+          const fileUri = ((FileSystem as any).cacheDirectory || '') + 'ai_response.mp3';
           await FileSystem.writeAsStringAsync(fileUri, base64Audio, {
-              encoding: FileSystem.EncodingType.Base64,
+              encoding: 'base64' as any,
           });
 
           const { sound } = await Audio.Sound.createAsync(
@@ -178,6 +218,7 @@ export default function AICoachScreen() {
 
   const startTimer = () => {
     timerRef.current = setInterval(() => {
+      if (isPaused) return;
       setTimeLeft((prev) => {
         if (prev <= 1) {
           if (timerRef.current) clearInterval(timerRef.current);
@@ -188,6 +229,23 @@ export default function AICoachScreen() {
         return prev - 1;
       });
     }, 1000);
+  };
+
+  const startWaveformAnimation = () => {
+      Animated.loop(
+          Animated.sequence([
+              Animated.timing(waveformAnim, {
+                  toValue: 1,
+                  duration: 500,
+                  useNativeDriver: true,
+              }),
+              Animated.timing(waveformAnim, {
+                  toValue: 0,
+                  duration: 500,
+                  useNativeDriver: true,
+              })
+          ])
+      ).start();
   };
 
   const stopSession = () => {
@@ -214,7 +272,6 @@ export default function AICoachScreen() {
               Audio.RecordingOptionsPresets.LOW_QUALITY // Lower quality for smaller chunks
           );
           recordingRef.current = recording;
-          setIsRecording(true);
       } catch (err) {
           console.error('Failed to start recording', err);
       }
@@ -223,19 +280,20 @@ export default function AICoachScreen() {
   const stopRecording = async () => {
       if (!recordingRef.current) return;
       try {
-          setIsRecording(false);
           await recordingRef.current.stopAndUnloadAsync();
           const uri = recordingRef.current.getURI();
 
           if (uri && ws.current && ws.current.readyState === WebSocket.OPEN) {
               const base64Audio = await FileSystem.readAsStringAsync(uri, {
-                  encoding: FileSystem.EncodingType.Base64,
+                  encoding: 'base64' as any,
               });
 
               const audioMessage = {
                   realtime_input: {
                       media_chunks: [{
-                          mime_type: "audio/mp4", // expo-av default on most platforms
+                          // Gemini Live prefers audio/pcm;rate=16000 but we send what expo-av provides
+                          // audio/mp4 might not be supported by Gemini Live BiDiSession, but we try anyway
+                          mime_type: "audio/mp4",
                           data: base64Audio
                       }]
                   }
@@ -288,45 +346,95 @@ export default function AICoachScreen() {
     <View style={styles.container}>
       <CameraView ref={cameraRef} style={styles.camera} facing="front" />
 
+      {/* Dark overlay for camera to make text readable */}
+      <View style={styles.darkOverlay} />
+
       <SafeAreaView style={styles.overlay}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
-            <Ionicons name="close" size={28} color="white" />
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={28} color="white" />
           </TouchableOpacity>
-          <View style={styles.timerBadge}>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>AI Coach · {exerciseName}</Text>
+            <View style={styles.liveIndicatorContainer}>
+               <View style={styles.redDot} />
+               <Text style={styles.liveText}>LIVE SESSION</Text>
+            </View>
+          </View>
+          <View style={styles.timerContainer}>
             <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
           </View>
-          <View style={{ width: 40 }} />
         </View>
 
-        {/* AI Voice Visualization Area */}
-        <View style={styles.centerArea}>
-          <View style={[styles.pulseCircle, isConnected && styles.pulseActive]}>
-             <Ionicons name="sparkles" size={40} color={isConnected ? "#F6F000" : "#666"} />
+        {/* Floating Correction Card */}
+        {formCorrection && (
+          <View style={styles.correctionCardContainer}>
+            <BlurView intensity={80} tint="dark" style={styles.correctionCard}>
+                <View style={styles.correctionHeader}>
+                    <Ionicons name="warning" size={18} color="#F6F000" />
+                    <Text style={styles.correctionTitle}>FORM CORRECTION</Text>
+                </View>
+                <Text style={styles.correctionText}>{formCorrection}</Text>
+            </BlurView>
           </View>
-          <Text style={styles.exerciseNameTitle}>{exerciseName}</Text>
-          <View style={styles.textContainer}>
-            <Text style={styles.aiTextDisplay}>{aiText}</Text>
-          </View>
+        )}
+
+        {/* Coaching status and Waveform */}
+        <View style={styles.coachingStatusContainer}>
+            <View style={styles.waveformContainer}>
+                {[1, 2, 3, 4, 5].map((i) => (
+                    <Animated.View
+                        key={i}
+                        style={[
+                            styles.waveformBar,
+                            {
+                                height: waveformAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [10, 30 + (i * 5) % 20]
+                                }),
+                                opacity: isConnected ? 1 : 0.3
+                            }
+                        ]}
+                    />
+                ))}
+            </View>
+            <Text style={styles.coachingStatusText}>
+                {isConnected ? "COACHING..." : "CONNECTING..."}
+            </Text>
         </View>
 
-        {/* Controls */}
-        <View style={styles.controls}>
+        {/* Conversation Log (Simplified) */}
+        <View style={styles.logContainer}>
+            <Text style={styles.logText} numberOfLines={3}>{aiText}</Text>
+        </View>
+
+        {/* Bottom Controls */}
+        <View style={styles.bottomControls}>
           <TouchableOpacity
-            onPressIn={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                startRecording();
-            }}
-            onPressOut={stopRecording}
-            activeOpacity={0.7}
-            style={[styles.micButton, isRecording && styles.micButtonActive]}
+            style={styles.controlButtonSmall}
+            onPress={() => setIsMuted(!isMuted)}
           >
-            <Ionicons name={isRecording ? "mic" : "mic-outline"} size={32} color="black" />
+            <Ionicons name={isMuted ? "mic-off" : "mic"} size={24} color="white" />
+            <Text style={styles.controlButtonText}>MUTE</Text>
           </TouchableOpacity>
-          <Text style={styles.instructionText}>
-            {isRecording ? "Listening..." : "Hold to talk to your coach"}
-          </Text>
+
+          <TouchableOpacity
+            style={[styles.pauseButton, isPaused && styles.pausedActive]}
+            onPress={() => setIsPaused(!isPaused)}
+          >
+            <Ionicons name={isPaused ? "play" : "pause"} size={32} color="black" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.controlButtonSmall}
+            onPress={() => router.back()}
+          >
+            <View style={styles.endButtonCircle}>
+                <Ionicons name="power" size={24} color="white" />
+            </View>
+            <Text style={styles.controlButtonText}>END SESSION</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </View>
@@ -340,7 +448,10 @@ const styles = StyleSheet.create({
   },
   camera: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.5,
+  },
+  darkOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
   },
   overlay: {
     flex: 1,
@@ -348,98 +459,161 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'android' ? 40 : 10,
+    justifyContent: 'space-between',
   },
-  closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  backButton: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  timerBadge: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+  headerTitleContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerTitle: {
+    color: 'white',
+    fontFamily: fontFamily.bold,
+    fontSize: 18,
+  },
+  liveIndicatorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  redDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF3B30',
+    marginRight: 6,
+  },
+  liveText: {
+    color: 'white',
+    fontSize: 12,
+    fontFamily: fontFamily.bold,
+    letterSpacing: 1,
+  },
+  timerContainer: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   timerText: {
     color: 'white',
-    fontFamily: fontFamily.bold,
+    fontFamily: fontFamily.mono || 'Courier',
     fontSize: 16,
   },
-  centerArea: {
-    alignItems: 'center',
-    paddingHorizontal: 25,
+  correctionCardContainer: {
+    paddingHorizontal: 20,
+    marginTop: 20,
   },
-  pulseCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+  correctionCard: {
+    borderRadius: 16,
+    padding: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(246, 240, 0, 0.3)',
+  },
+  correctionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  correctionTitle: {
+    color: '#F6F000',
+    fontFamily: fontFamily.bold,
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  correctionText: {
+    color: 'white',
+    fontFamily: fontFamily.medium,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  coachingStatusContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 25,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    marginTop: 'auto',
+    marginBottom: 20,
   },
-  pulseActive: {
-    borderColor: '#F6F000',
-    backgroundColor: 'rgba(246, 240, 0, 0.1)',
-    shadowColor: '#F6F000',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-  },
-  exerciseNameTitle: {
-    color: 'white',
-    fontSize: 26,
-    fontFamily: fontFamily.bold,
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  textContainer: {
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    padding: 24,
-    borderRadius: 24,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  aiTextDisplay: {
-    color: 'white',
-    fontSize: 18,
-    fontFamily: fontFamily.medium,
-    textAlign: 'center',
-    lineHeight: 28,
-  },
-  controls: {
+  waveformContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 50,
+    height: 40,
+    marginBottom: 10,
   },
-  micButton: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+  waveformBar: {
+    width: 4,
+    backgroundColor: '#F6F000',
+    marginHorizontal: 2,
+    borderRadius: 2,
+  },
+  coachingStatusText: {
+    color: 'white',
+    fontFamily: fontFamily.bold,
+    fontSize: 12,
+    letterSpacing: 2,
+    opacity: 0.8,
+  },
+  logContainer: {
+    paddingHorizontal: 30,
+    marginBottom: 30,
+    minHeight: 60,
+  },
+  logText: {
+    color: 'white',
+    fontFamily: fontFamily.medium,
+    fontSize: 16,
+    textAlign: 'center',
+    opacity: 0.9,
+    lineHeight: 24,
+  },
+  bottomControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingBottom: 40,
+  },
+  controlButtonSmall: {
+    alignItems: 'center',
+    width: 80,
+  },
+  controlButtonText: {
+    color: 'white',
+    fontSize: 10,
+    fontFamily: fontFamily.bold,
+    marginTop: 8,
+    opacity: 0.7,
+  },
+  pauseButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#F6F000',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    shadowColor: '#F6F000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  micButtonActive: {
+  pausedActive: {
     backgroundColor: '#FFFFFF',
-    transform: [{ scale: 1.1 }],
   },
-  instructionText: {
-    color: 'white',
-    fontFamily: fontFamily.medium,
-    fontSize: 14,
-    opacity: 0.7,
+  endButtonCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -9,8 +9,7 @@ import {
   useColorScheme,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
-import { getExerciseById } from "../../../src/db/exerciseRepo";
-import { Exercise } from "../../../src/db/exerciseRepo";
+import { getExerciseById , Exercise } from "../../../src/db/exerciseRepo";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function ExerciseDetailScreen() {
