@@ -14,10 +14,6 @@ The project is divided into three main components:
 
 - **User Authentication**: Secure login via Firebase and Google Sign-in.
 - **Form Analysis**: Upload workout videos to get real-time feedback on your form (powered by Google Gemini).
-- **Workout Planning**: Create and manage personalized workout plans.
-- **Nutrition Tracking**: Calculate and track daily nutrition targets (calories, protein, etc.).
-- **Body Metrics**: Track age, weight, height, and activity level.
-- **Quota Management**: Controlled AI usage via a credit-based system.
 
 ## Tech Stack
 
